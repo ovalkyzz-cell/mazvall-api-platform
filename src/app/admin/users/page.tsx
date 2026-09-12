@@ -5,7 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { Users, Trash2, Edit, ChevronDown } from "lucide-react";
+import { Users, Trash2, Edit, ChevronDown, Check, X, Ban, ShieldCheck } from "lucide-react";
 
 interface UserItem {
   id: string;
@@ -13,6 +13,7 @@ interface UserItem {
   name: string;
   role: string;
   tier: string;
+  status?: string;
   createdAt: string;
   _count: { apiKeys: number; usageLogs: number };
 }
@@ -22,6 +23,8 @@ export default function AdminUsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [editingTier, setEditingTier] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showFilter, setShowFilter] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) router.push("/dashboard");
@@ -31,9 +34,16 @@ export default function AdminUsersPage() {
     if (token) {
       fetch("/api/admin/users", { headers: { Authorization: `Bearer ${token}` } })
         .then((r) => r.json())
-        .then((d) => { if (d.success) setUsers(d.data.users); });
+        .then((d) => {
+          if (d.success) setUsers(d.data.users);
+        });
     }
   }, [token]);
+
+  const filteredUsers = users.filter((u) => {
+    if (statusFilter === "all") return true;
+    return u.status === statusFilter;
+  });
 
   const updateTier = async (id: string, tier: string) => {
     if (!token) return;
@@ -47,10 +57,36 @@ export default function AdminUsersPage() {
     if (d.success) setUsers(d.data.users);
   };
 
+  const updateStatus = async (id: string, status: string) => {
+    if (!token) return;
+    await fetch(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    });
+    const d = await fetch("/api/admin/users", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json());
+    if (d.success) setUsers(d.data.users);
+  };
+
   const deleteUser = async (id: string) => {
-    if (!confirm("Delete this user?") || !token) return;
+    if (!confirm("Hapus pengguna ini?") || !token) return;
     await fetch(`/api/admin/users/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
     setUsers((prev) => prev.filter((u) => u.id !== id));
+  };
+
+  const statusBadge = (status?: string) => {
+    switch (status) {
+      case "active":
+        return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-500/15 text-green-400 border border-green-500/20">Aktif</span>;
+      case "pending":
+        return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/20">Menunggu</span>;
+      case "banned":
+        return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/15 text-red-400 border border-red-500/20">Diblokir</span>;
+      case "rejected":
+        return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/20">Ditolak</span>;
+      default:
+        return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-white/10 text-white/50">{status || "Tidak Diketahui"}</span>;
+    }
   };
 
   if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-neon-cyan border-t-transparent rounded-full animate-spin" /></div>;
@@ -58,11 +94,41 @@ export default function AdminUsersPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Users size={24} className="text-neon-cyan" />
-          <div>
-            <h1 className="font-display text-2xl font-bold">User Management</h1>
-            <p className="text-sm text-white/30">{users.length} registered users</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Users size={24} className="text-neon-cyan" />
+            <div>
+              <h1 className="font-display text-2xl font-bold">Manajemen Pengguna</h1>
+              <p className="text-sm text-white/30">{users.length} pengguna terdaftar</p>
+            </div>
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowFilter(!showFilter)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 transition-colors"
+            >
+              Status: {statusFilter === "all" ? "Semua" : statusFilter === "active" ? "Aktif" : statusFilter === "pending" ? "Menunggu" : statusFilter === "banned" ? "Diblokir" : statusFilter}
+              <ChevronDown size={14} />
+            </button>
+            {showFilter && (
+              <div className="absolute right-0 top-full mt-1 w-40 rounded-lg bg-[#0a0a1a] border border-white/10 shadow-xl z-50">
+                {[
+                  { value: "all", label: "Semua" },
+                  { value: "active", label: "Aktif" },
+                  { value: "pending", label: "Menunggu" },
+                  { value: "banned", label: "Diblokir" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setStatusFilter(opt.value); setShowFilter(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors first:rounded-t-lg last:rounded-b-lg ${statusFilter === opt.value ? "text-neon-cyan" : "text-white/70"}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -70,17 +136,18 @@ export default function AdminUsersPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>User</th>
-                <th>Role</th>
+                <th>Pengguna</th>
+                <th>Peran</th>
                 <th>Tier</th>
-                <th>API Keys</th>
-                <th>Requests</th>
-                <th>Joined</th>
-                <th>Actions</th>
+                <th>Status</th>
+                <th>Kunci API</th>
+                <th>Log Penggunaan</th>
+                <th>Dibuat</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr key={u.id}>
                   <td>
                     <div>
@@ -109,18 +176,62 @@ export default function AdminUsersPage() {
                       </button>
                     )}
                   </td>
+                  <td>{statusBadge(u.status)}</td>
                   <td className="text-sm">{u._count.apiKeys}</td>
                   <td className="text-sm">{u._count.usageLogs.toLocaleString()}</td>
                   <td className="text-xs text-white/30">{new Date(u.createdAt).toLocaleDateString()}</td>
                   <td>
-                    {u.role !== "admin" && (
-                      <button onClick={() => deleteUser(u.id)} className="p-1.5 rounded-lg text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {u.status === "pending" && u.role !== "admin" && (
+                        <>
+                          <button
+                            onClick={() => updateStatus(u.id, "active")}
+                            title="Setujui"
+                            className="p-1.5 rounded-lg text-green-400/50 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => updateStatus(u.id, "rejected")}
+                            title="Tolak"
+                            className="p-1.5 rounded-lg text-orange-400/50 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        </>
+                      )}
+                      {u.status === "active" && u.role !== "admin" && (
+                        <button
+                          onClick={() => updateStatus(u.id, "banned")}
+                          title="Blokir"
+                          className="p-1.5 rounded-lg text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        >
+                          <Ban size={14} />
+                        </button>
+                      )}
+                      {u.status === "banned" && u.role !== "admin" && (
+                        <button
+                          onClick={() => updateStatus(u.id, "active")}
+                          title="Buka Blokir"
+                          className="p-1.5 rounded-lg text-green-400/50 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+                        >
+                          <ShieldCheck size={14} />
+                        </button>
+                      )}
+                      {u.role !== "admin" && (
+                        <button onClick={() => deleteUser(u.id)} title="Hapus" className="p-1.5 rounded-lg text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-white/30 text-sm">Tidak ada pengguna ditemukan.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </motion.div>

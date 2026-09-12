@@ -3,9 +3,9 @@ import "@/styles/globals.css";
 import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "Api's Mazvall — REST API Platform & Documentation",
-  description: "Professional REST API platform with interactive documentation, rate limiting, and developer tools. Base URL: https://api-mazval.zone.id",
-  keywords: ["API", "REST", "documentation", "Mazvall", "developer tools"],
+  title: "Api's Mazvall — Platform API REST & Dokumentasi",
+  description: "Platform API REST profesional dengan dokumentasi interaktif, rate limit, dan tools developer. Base URL: https://api-mazval.zone.id",
+  keywords: ["API", "REST", "dokumentasi", "Mazvall", "tools developer", "rate limit"],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

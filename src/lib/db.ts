@@ -26,6 +26,7 @@ export async function getAllUsers() {
       name: true,
       role: true,
       tier: true,
+      status: true,
       createdAt: true,
       _count: { select: { apiKeys: true, usageLogs: true } },
     },
@@ -39,7 +40,7 @@ export async function createUser(data: { email: string; password: string; name: 
   });
 }
 
-export async function updateUser(id: string, data: { tier?: string; role?: string }) {
+export async function updateUser(id: string, data: { tier?: string; role?: string; status?: string }) {
   return prisma.user.update({ where: { id }, data });
 }
 

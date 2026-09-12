@@ -6,7 +6,11 @@ export async function GET(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
     const users = await getAllUsers();
-    return successResponse({ users });
+    const usersWithStatus = users.map((user: any) => ({
+      ...user,
+      status: user.status || 'active',
+    }));
+    return successResponse({ users: usersWithStatus });
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
     if (error.message === 'Forbidden') return authResponse('Forbidden', 403);

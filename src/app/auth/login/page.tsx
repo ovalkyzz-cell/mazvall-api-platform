@@ -47,8 +47,8 @@ export default function LoginPage() {
               <span className="font-display font-bold text-surface-dark">M</span>
             </div>
           </Link>
-          <h1 className="font-display text-3xl font-bold mb-2">Welcome back</h1>
-          <p className="text-white/40 text-sm">Sign in to your Api&apos;s Mazvall account</p>
+          <h1 className="font-display text-3xl font-bold mb-2">Selamat Datang Kembali</h1>
+          <p className="text-white/40 text-sm">Masuk ke akun Api&apos;s Mazvall kamu</p>
         </div>
 
         <div className="glass-card p-8">
@@ -68,7 +68,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-neon-cyan/50 focus:ring-1 focus:ring-neon-cyan/20 transition-all"
-                  placeholder="you@example.com"
+                  placeholder="email@contoh.com"
                   required
                 />
               </div>
@@ -102,21 +102,21 @@ export default function LoginPage() {
               className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <span className="shine" />
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Masuk..." : "Masuk"}
               {!loading && <ArrowRight size={16} />}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-white/30">
-              Don&apos;t have an account?{" "}
-              <Link href="/auth/register" className="text-neon-cyan hover:underline">Register</Link>
+              Belum punya akun?{" "}
+              <Link href="/auth/register" className="text-neon-cyan hover:underline">Daftar</Link>
             </p>
           </div>
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/" className="text-sm text-white/20 hover:text-white/40 transition-colors">← Back to home</Link>
+          <Link href="/" className="text-sm text-white/20 hover:text-white/40 transition-colors">← Kembali ke beranda</Link>
         </div>
       </motion.div>
     </div>

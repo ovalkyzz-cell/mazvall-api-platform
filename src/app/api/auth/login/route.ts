@@ -21,7 +21,17 @@ export async function POST(req: NextRequest) {
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Email atau password salah' }, { status: 401 });
+    }
+
+    if (user.status === 'banned') {
+      return NextResponse.json({ success: false, error: 'Akun anda telah diblokir. Hubungi admin untuk info lebih lanjut.' }, { status: 403 });
+    }
+    if (user.status === 'rejected') {
+      return NextResponse.json({ success: false, error: 'Akun anda telah ditolak. Hubungi admin untuk info lebih lanjut.' }, { status: 403 });
+    }
+    if (user.status === 'pending') {
+      return NextResponse.json({ success: false, error: 'Akun anda masih menunggu persetujuan admin.' }, { status: 403 });
     }
 
     const token = jwt.sign(

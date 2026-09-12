@@ -52,8 +52,8 @@ export default function RegisterPage() {
               <span className="font-display font-bold text-surface-dark">M</span>
             </div>
           </Link>
-          <h1 className="font-display text-3xl font-bold mb-2">Create account</h1>
-          <p className="text-white/40 text-sm">Start building with Api&apos;s Mazvall today</p>
+          <h1 className="font-display text-3xl font-bold mb-2">Buat akun kamu</h1>
+          <p className="text-white/40 text-sm">Gabung ke Platform API Api&apos;s Mazvall</p>
         </div>
 
         <div className="glass-card p-8">
@@ -65,7 +65,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-2">Name</label>
+              <label className="block text-xs font-medium text-white/40 uppercase tracking-wider mb-2">Nama</label>
               <div className="relative">
                 <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
                 <input
@@ -73,7 +73,7 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-neon-cyan/50 focus:ring-1 focus:ring-neon-cyan/20 transition-all"
-                  placeholder="Your name"
+                  placeholder="nama kamu"
                   required
                 />
               </div>
@@ -123,15 +123,15 @@ export default function RegisterPage() {
               className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <span className="shine" />
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? "Membuat akun..." : "Buat Akun"}
               {!loading && <ArrowRight size={16} />}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-white/30">
-              Already have an account?{" "}
-              <Link href="/auth/login" className="text-neon-cyan hover:underline">Sign in</Link>
+              Sudah punya akun?{" "}
+              <Link href="/auth/login" className="text-neon-cyan hover:underline">Masuk</Link>
             </p>
           </div>
         </div>

@@ -14,17 +14,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/dashboard", label: "Overview", icon: BarChart3 },
-    { href: "/dashboard#keys", label: "API Keys", icon: Key },
-    { href: "/support", label: "Support", icon: HelpCircle },
+    { href: "/dashboard", label: "Ringkasan", icon: BarChart3 },
+    { href: "/dashboard#keys", label: "Kunci API", icon: Key },
+    { href: "/support", label: "Dukungan", icon: HelpCircle },
   ];
 
   const adminItems = [
-    { href: "/admin", label: "Overview", icon: Shield },
-    { href: "/admin/users", label: "Users", icon: User },
-    { href: "/admin/keys", label: "API Keys", icon: Key },
-    { href: "/admin/tickets", label: "Tickets", icon: FileText },
-    { href: "/admin/settings", label: "Settings", icon: Settings },
+    { href: "/admin", label: "Ringkasan", icon: Shield },
+    { href: "/admin/users", label: "Pengguna", icon: User },
+    { href: "/admin/keys", label: "Kunci API", icon: Key },
+    { href: "/admin/tickets", label: "Tiket", icon: FileText },
+    { href: "/admin/settings", label: "Pengaturan", icon: Settings },
   ];
 
   const items = user?.role === "admin" ? [...navItems.slice(0, 1), ...adminItems, ...navItems.slice(1)] : navItems;
@@ -46,7 +46,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               </div>
               <div className="mt-3 flex items-center gap-2">
                 <span className={clsx("badge", `badge-${user?.tier}`)}>{user?.tier}</span>
-                {user?.role === "admin" && <span className="badge badge-admin">admin</span>}
+                {user?.role === "admin" && <span className="badge badge-admin">Admin</span>}
               </div>
             </div>
 
@@ -74,14 +74,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-white hover:bg-white/5 w-full transition-all"
               >
                 {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-                {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                {theme === "dark" ? "Mode Terang" : "Mode Gelap"}
               </button>
               <button
                 onClick={logout}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-red-400 hover:bg-red-500/5 w-full transition-all"
               >
                 <LogOut size={16} />
-                Logout
+                Keluar
               </button>
             </div>
           </div>
