@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getAllTickets } from '@/lib/db';
 import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-
-    const tickets = await prisma.ticket.findMany({
-      include: { user: { select: { name: true, email: true } }, _count: { select: { replies: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
-
+    const tickets = getAllTickets();
     return successResponse({ tickets });
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');

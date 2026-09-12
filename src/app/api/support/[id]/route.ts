@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { findTicketById, addTicketReply } from '@/lib/db';
 import { authenticate, authResponse, successResponse } from '@/lib/auth';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -12,23 +12,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ success: false, error: 'Message required' }, { status: 400 });
     }
 
-    const ticket = await prisma.ticket.findFirst({
-      where: { id: params.id, userId: user.userId },
-    });
-
-    if (!ticket) {
+    const ticket = findTicketById(params.id);
+    if (!ticket || ticket.userId !== user.userId) {
       return NextResponse.json({ success: false, error: 'Ticket not found' }, { status: 404 });
     }
 
-    const reply = await prisma.ticketReply.create({
-      data: {
-        message,
-        ticketId: params.id,
-        userId: user.userId,
-        isAdmin: false,
-      },
-    });
-
+    const reply = addTicketReply(params.id, user.userId, message, false);
     return successResponse({ reply }, 'Reply sent');
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
@@ -40,12 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const ticket = await prisma.ticket.findFirst({
-      where: { id: params.id, userId: user.userId },
-      include: { replies: { include: { user: { select: { name: true, role: true } } }, orderBy: { createdAt: 'asc' } } },
-    });
-
-    if (!ticket) {
+    const ticket = findTicketById(params.id);
+    if (!ticket || ticket.userId !== user.userId) {
       return NextResponse.json({ success: false, error: 'Ticket not found' }, { status: 404 });
     }
 

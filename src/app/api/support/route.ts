@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getTicketsByUserId, createTicket } from '@/lib/db';
 import { authenticate, authResponse, successResponse } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -12,16 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Subject and message required' }, { status: 400 });
     }
 
-    const ticket = await prisma.ticket.create({
-      data: {
-        subject,
-        message,
-        category: category || 'general',
-        priority: priority || 'normal',
-        userId: user.userId,
-      },
-    });
-
+    const ticket = createTicket(user.userId, { subject, message, category, priority });
     return successResponse({ ticket }, 'Ticket created');
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
@@ -33,12 +24,7 @@ export async function GET(req: NextRequest) {
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const tickets = await prisma.ticket.findMany({
-      where: { userId: user.userId },
-      include: { _count: { select: { replies: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
-
+    const tickets = getTicketsByUserId(user.userId);
     return successResponse({ tickets });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

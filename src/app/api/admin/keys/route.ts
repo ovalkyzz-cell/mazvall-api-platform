@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma, generateApiKey } from '@/lib/prisma';
+import { getAllKeys, createApiKey } from '@/lib/db';
 import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-
-    const keys = await prisma.apiKey.findMany({
-      include: { user: { select: { name: true, email: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
-
+    const keys = getAllKeys();
     return successResponse({ keys });
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
@@ -28,16 +23,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'userId and name required' }, { status: 400 });
     }
 
-    const key = generateApiKey();
-    const apiKey = await prisma.apiKey.create({
-      data: {
-        key,
-        name,
-        userId,
-        rateLimit: rateLimit || 100,
-      },
-    });
-
+    const apiKey = createApiKey(userId, name, rateLimit || 100);
     return successResponse({ apiKey }, 'API key generated');
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { updateUser, deleteUser } from '@/lib/db';
 import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -7,15 +7,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const admin = requireAdmin(req);
     const { tier, role } = await req.json();
 
-    const updateData: any = {};
-    if (tier) updateData.tier = tier;
-    if (role) updateData.role = role;
-
-    const user = await prisma.user.update({
-      where: { id: params.id },
-      data: updateData,
-      select: { id: true, email: true, name: true, role: true, tier: true },
-    });
+    const user = updateUser(params.id, { tier, role });
+    if (!user) return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
 
     return successResponse({ user }, 'User updated');
   } catch (error: any) {
@@ -28,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const admin = requireAdmin(req);
-    await prisma.user.delete({ where: { id: params.id } });
+    deleteUser(params.id);
     return successResponse(null, 'User deleted');
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');

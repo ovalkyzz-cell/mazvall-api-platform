@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { findUserById } from '@/lib/db';
 import { authenticate, authResponse, successResponse } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -7,14 +7,11 @@ export async function GET(req: NextRequest) {
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.userId },
-      select: { id: true, email: true, name: true, role: true, tier: true, createdAt: true },
-    });
-
+    const dbUser = findUserById(user.userId);
     if (!dbUser) return authResponse('User not found');
 
-    return successResponse({ user: dbUser });
+    const { password, ...safe } = dbUser;
+    return successResponse({ user: safe });
   } catch (error) {
     return authResponse('Unauthorized');
   }
