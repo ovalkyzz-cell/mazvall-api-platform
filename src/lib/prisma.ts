@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { customAlphabet } from 'nanoid';
+import { randomBytes } from 'crypto';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
@@ -12,8 +12,8 @@ export const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api-mazval.zone.id';
 
 export const generateApiKey = (): string => {
-  const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 12);
-  return `MVAL-${nanoid()}`;
+  const id = randomBytes(6).toString('base64url').slice(0, 12).toUpperCase();
+  return `MVAL-${id}`;
 };
 
 export const hashPassword = async (password: string): Promise<string> => {

@@ -1,7 +1,9 @@
-import { customAlphabet } from 'nanoid';
+import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 
-const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 12);
+function nanoid(): string {
+  return randomBytes(6).toString('base64url').slice(0, 12).toUpperCase();
+}
 
 export interface User {
   id: string;
