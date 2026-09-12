@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Email and password required' }, { status: 400 });
     }
 
-    const user = findUserByEmail(email);
+    const user = await findUserByEmail(email);
     if (!user) {
       return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
     }
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     response.cookies.set('mazvall_token', token, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7,
       path: '/',

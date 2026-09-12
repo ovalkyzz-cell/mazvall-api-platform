@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { findUserById } from '@/lib/db';
 import { authenticate, authResponse, successResponse } from '@/lib/auth';
 
@@ -7,12 +7,12 @@ export async function GET(req: NextRequest) {
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const dbUser = findUserById(user.userId);
+    const dbUser = await findUserById(user.userId);
     if (!dbUser) return authResponse('User not found');
 
     const { password, ...safe } = dbUser;
     return successResponse({ user: safe });
-  } catch (error) {
+  } catch {
     return authResponse('Unauthorized');
   }
 }

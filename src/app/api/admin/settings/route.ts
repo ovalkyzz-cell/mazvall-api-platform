@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateUser, deleteUser } from '@/lib/db';
+import { getRateLimits, updateRateLimitConfig } from '@/lib/db';
 import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-    const { tier, role } = await req.json();
-
-    const user = await updateUser(params.id, { tier, role });
-    return successResponse({ user }, 'User updated');
+    const limits = await getRateLimits();
+    return successResponse({ limits });
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
     if (error.message === 'Forbidden') return authResponse('Forbidden', 403);
@@ -16,11 +14,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-    await deleteUser(params.id);
-    return successResponse(null, 'User deleted');
+    const { limits } = await req.json();
+
+    if (!limits || !Array.isArray(limits)) {
+      return NextResponse.json({ success: false, error: 'limits array required' }, { status: 400 });
+    }
+
+    for (const l of limits) {
+      if (l.tier && typeof l.rpm === 'number' && typeof l.rph === 'number' && typeof l.rpd === 'number') {
+        await updateRateLimitConfig(l.tier, l.rpm, l.rph, l.rpd);
+      }
+    }
+
+    const updated = await getRateLimits();
+    return successResponse({ limits: updated }, 'Rate limits updated');
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
     if (error.message === 'Forbidden') return authResponse('Forbidden', 403);

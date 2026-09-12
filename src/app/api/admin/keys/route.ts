@@ -5,7 +5,7 @@ import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-    const keys = getAllKeys();
+    const keys = await getAllKeys();
     return successResponse({ keys });
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'userId and name required' }, { status: 400 });
     }
 
-    const apiKey = createApiKey(userId, name, rateLimit || 100);
+    const apiKey = await createApiKey(userId, name, rateLimit || 100);
     return successResponse({ apiKey }, 'API key generated');
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');

@@ -12,22 +12,22 @@ export async function GET(req: NextRequest) {
     const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const logs = getLogsByUserId(user.userId);
-    const keys = getKeysByUserId(user.userId);
-
-    const todayCount = countLogsByUser(user.userId, today);
-    const weekCount = countLogsByUser(user.userId, thisWeek);
-    const monthCount = countLogsByUser(user.userId, thisMonth);
-    const totalKeys = keys.length;
-
-    const dailyUsage = getDailyUsage(7);
+    const [logs, keys, todayCount, weekCount, monthCount, dailyUsage] = await Promise.all([
+      getLogsByUserId(user.userId),
+      getKeysByUserId(user.userId),
+      countLogsByUser(user.userId, today),
+      countLogsByUser(user.userId, thisWeek),
+      countLogsByUser(user.userId, thisMonth),
+      getDailyUsage(7),
+    ]);
 
     return successResponse({
-      logs: logs.map((l) => ({ ...l, apiKey: keys.find((k) => k.id === l.apiKeyId) ? { name: keys.find((k) => k.id === l.apiKeyId)!.name, key: keys.find((k) => k.id === l.apiKeyId)!.key } : null })),
-      stats: { todayCount, weekCount, monthCount, totalKeys },
+      keys,
+      logs,
+      stats: { todayCount, weekCount, monthCount, totalKeys: keys.length },
       dailyUsage: dailyUsage.map((d) => ({ ...d, count: d.requests })),
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

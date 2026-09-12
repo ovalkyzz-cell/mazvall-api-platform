@@ -12,9 +12,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Subject and message required' }, { status: 400 });
     }
 
-    const ticket = createTicket(user.userId, { subject, message, category, priority });
+    const ticket = await createTicket(user.userId, { subject, message, category, priority });
     return successResponse({ ticket }, 'Ticket created');
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -24,9 +24,9 @@ export async function GET(req: NextRequest) {
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const tickets = getTicketsByUserId(user.userId);
+    const tickets = await getTicketsByUserId(user.userId);
     return successResponse({ tickets });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

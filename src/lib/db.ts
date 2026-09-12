@@ -1,219 +1,92 @@
+import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
-import bcrypt from 'bcryptjs';
 
 function nanoid(): string {
   return randomBytes(6).toString('base64url').slice(0, 12).toUpperCase();
 }
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  password: string;
-  role: 'user' | 'admin';
-  tier: 'free' | 'developer' | 'enterprise';
-  createdAt: string;
-}
-
-export interface ApiKey {
-  id: string;
-  key: string;
-  name: string;
-  userId: string;
-  active: boolean;
-  rateLimit: number;
-  lastUsedAt: string | null;
-  createdAt: string;
-}
-
-export interface UsageLog {
-  id: string;
-  apiKeyId: string;
-  userId: string;
-  endpoint: string;
-  method: string;
-  status: number;
-  responseTime: number;
-  ip: string | null;
-  createdAt: string;
-}
-
-export interface Ticket {
-  id: string;
-  subject: string;
-  message: string;
-  status: 'open' | 'pending' | 'closed';
-  priority: 'low' | 'normal' | 'high';
-  category: string;
-  userId: string;
-  createdAt: string;
-  replies: TicketReply[];
-}
-
-export interface TicketReply {
-  id: string;
-  message: string;
-  userId: string;
-  isAdmin: boolean;
-  createdAt: string;
-}
-
-interface Database {
-  users: User[];
-  apiKeys: ApiKey[];
-  usageLogs: UsageLog[];
-  tickets: Ticket[];
-}
-
-let db: Database | null = null;
-
-function getDB(): Database {
-  if (db) return db;
-  db = getDefaultDB();
-  return db;
-}
-
-function getDefaultDB(): Database {
-  const now = new Date().toISOString();
-  return {
-    users: [
-      {
-        id: 'admin-001',
-        email: 'admin@mazvall.com',
-        name: 'Mazz-Vall Admin',
-        password: '$2a$12$oLTkkNQsEo8AGbD6j0/.kesPLTqefNuYjBa356gUhYfqwUyJZeu2m',
-        role: 'admin',
-        tier: 'enterprise',
-        createdAt: now,
-      },
-      {
-        id: 'demo-001',
-        email: 'demo@mazvall.com',
-        name: 'Demo User',
-        password: '$2a$12$oLTkkNQsEo8AGbD6j0/.kesPLTqefNuYjBa356gUhYfqwUyJZeu2m',
-        role: 'user',
-        tier: 'developer',
-        createdAt: now,
-      },
-    ],
-    apiKeys: [
-      {
-        id: 'key-001',
-        key: 'MVAL-DEMO1234567890',
-        name: 'Demo API Key',
-        userId: 'demo-001',
-        active: true,
-        rateLimit: 60,
-        lastUsedAt: null,
-        createdAt: now,
-      },
-    ],
-    usageLogs: [],
-    tickets: [],
-  };
-}
-
-// ========== USERS ==========
-export function findUserByEmail(email: string): User | undefined {
-  return getDB().users.find((u) => u.email === email);
-}
-
-export function findUserById(id: string): User | undefined {
-  return getDB().users.find((u) => u.id === id);
-}
-
-export function getAllUsers(): Omit<User, 'password'>[] {
-  return getDB().users.map(({ password, ...u }) => u);
-}
-
-export function createUser(data: { email: string; password: string; name: string }): User {
-  const db = getDB();
-  const user: User = {
-    id: `user-${nanoid()}`,
-    email: data.email,
-    name: data.name,
-    password: data.password,
-    role: 'user',
-    tier: 'free',
-    createdAt: new Date().toISOString(),
-  };
-  db.users.push(user);
-  return user;
-}
-
-export function updateUser(id: string, data: Partial<Pick<User, 'tier' | 'role'>>): User | null {
-  const db = getDB();
-  const user = db.users.find((u) => u.id === id);
-  if (!user) return null;
-  if (data.tier) user.tier = data.tier;
-  if (data.role) user.role = data.role;
-  return user;
-}
-
-export function deleteUser(id: string): boolean {
-  const db = getDB();
-  const idx = db.users.findIndex((u) => u.id === id);
-  if (idx === -1) return false;
-  db.users.splice(idx, 1);
-  db.apiKeys = db.apiKeys.filter((k) => k.userId !== id);
-  db.usageLogs = db.usageLogs.filter((l) => l.userId !== id);
-  return true;
-}
-
-// ========== API KEYS ==========
 export function generateApiKeyString(): string {
   return `MVAL-${nanoid()}`;
 }
 
-export function findApiKeyByKey(key: string): ApiKey | undefined {
-  return getDB().apiKeys.find((k) => k.key === key);
+// ========== USERS ==========
+export async function findUserByEmail(email: string) {
+  return prisma.user.findUnique({ where: { email } });
 }
 
-export function findApiKeyById(id: string): ApiKey | undefined {
-  return getDB().apiKeys.find((k) => k.id === id);
+export async function findUserById(id: string) {
+  return prisma.user.findUnique({ where: { id } });
 }
 
-export function getKeysByUserId(userId: string): ApiKey[] {
-  return getDB().apiKeys.filter((k) => k.userId === userId);
+export async function getAllUsers() {
+  return prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      tier: true,
+      createdAt: true,
+      _count: { select: { apiKeys: true, usageLogs: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
 }
 
-export function getAllKeys(): ApiKey[] {
-  return getDB().apiKeys;
+export async function createUser(data: { email: string; password: string; name: string }) {
+  return prisma.user.create({
+    data: { email: data.email, name: data.name, password: data.password, role: 'user', tier: 'free' },
+  });
 }
 
-export function createApiKey(userId: string, name: string, rateLimit: number): ApiKey {
-  const db = getDB();
-  const key: ApiKey = {
-    id: `key-${nanoid()}`,
-    key: generateApiKeyString(),
-    name,
-    userId,
-    active: true,
-    rateLimit,
-    lastUsedAt: null,
-    createdAt: new Date().toISOString(),
-  };
-  db.apiKeys.push(key);
-  return key;
+export async function updateUser(id: string, data: { tier?: string; role?: string }) {
+  return prisma.user.update({ where: { id }, data });
 }
 
-export function toggleApiKey(id: string, active: boolean): ApiKey | null {
-  const key = getDB().apiKeys.find((k) => k.id === id);
-  if (!key) return null;
-  key.active = active;
-  return key;
+export async function deleteUser(id: string) {
+  return prisma.user.delete({ where: { id } });
 }
 
-export function deleteApiKey(id: string): boolean {
-  const db = getDB();
-  const idx = db.apiKeys.findIndex((k) => k.id === id);
-  if (idx === -1) return false;
-  db.apiKeys.splice(idx, 1);
-  return true;
+// ========== API KEYS ==========
+export async function findApiKeyByKey(key: string) {
+  return prisma.apiKey.findUnique({ where: { key } });
+}
+
+export async function findApiKeyById(id: string) {
+  return prisma.apiKey.findUnique({ where: { id } });
+}
+
+export async function getKeysByUserId(userId: string) {
+  return prisma.apiKey.findMany({
+    where: { userId },
+    include: { _count: { select: { usageLogs: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function getAllKeys() {
+  return prisma.apiKey.findMany({
+    include: { user: { select: { name: true, email: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function createApiKey(userId: string, name: string, rateLimit: number) {
+  return prisma.apiKey.create({
+    data: { key: generateApiKeyString(), name, userId, rateLimit },
+  });
+}
+
+export async function toggleApiKey(id: string, active: boolean) {
+  return prisma.apiKey.update({ where: { id }, data: { active } });
+}
+
+export async function deleteApiKey(id: string) {
+  return prisma.apiKey.delete({ where: { id } });
 }
 
 // ========== USAGE LOGS ==========
-export function createUsageLog(data: {
+export async function createUsageLog(data: {
   apiKeyId: string;
   userId: string;
   endpoint: string;
@@ -221,133 +94,152 @@ export function createUsageLog(data: {
   status: number;
   responseTime: number;
   ip?: string;
-}): UsageLog {
-  const db = getDB();
-  const log: UsageLog = {
-    id: `log-${nanoid()}`,
-    ...data,
-    ip: data.ip || null,
-    createdAt: new Date().toISOString(),
-  };
-  db.usageLogs.push(log);
-  // keep last 1000 logs
-  if (db.usageLogs.length > 1000) {
-    db.usageLogs = db.usageLogs.slice(-1000);
-  }
-  return log;
+}) {
+  return prisma.usageLog.create({
+    data: {
+      apiKeyId: data.apiKeyId,
+      userId: data.userId,
+      endpoint: data.endpoint,
+      method: data.method,
+      status: data.status,
+      responseTime: data.responseTime,
+      ip: data.ip || null,
+    },
+  });
 }
 
-export function getLogsByUserId(userId: string, limit = 100): UsageLog[] {
-  return getDB()
-    .usageLogs.filter((l) => l.userId === userId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, limit);
+export async function getLogsByUserId(userId: string, limit = 100) {
+  return prisma.usageLog.findMany({
+    where: { userId },
+    include: { apiKey: { select: { name: true, key: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
 }
 
-export function countLogsByUser(userId: string, since: Date): number {
-  return getDB().usageLogs.filter((l) => l.userId === userId && new Date(l.createdAt) >= since).length;
+export async function countLogsByUser(userId: string, since: Date) {
+  return prisma.usageLog.count({ where: { userId, createdAt: { gte: since } } });
 }
 
-export function getRecentLogs(limit = 20): (UsageLog & { userName?: string; keyName?: string })[] {
-  const db = getDB();
-  return db.usageLogs
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, limit)
-    .map((l) => {
-      const user = db.users.find((u) => u.id === l.userId);
-      const key = db.apiKeys.find((k) => k.id === l.apiKeyId);
-      return { ...l, userName: user?.name, keyName: key?.name };
-    });
+export async function getRecentLogs(limit = 20) {
+  return prisma.usageLog.findMany({
+    include: {
+      user: { select: { name: true } },
+      apiKey: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
 }
 
 // ========== TICKETS ==========
-export function getTicketsByUserId(userId: string): Ticket[] {
-  return getDB().tickets.filter((t) => t.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+export async function getTicketsByUserId(userId: string) {
+  return prisma.ticket.findMany({
+    where: { userId },
+    include: { _count: { select: { replies: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
 }
 
-export function getAllTickets(): Ticket[] {
-  return getDB().tickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+export async function getAllTickets() {
+  return prisma.ticket.findMany({
+    include: {
+      user: { select: { name: true, email: true } },
+      _count: { select: { replies: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
 }
 
-export function findTicketById(id: string): Ticket | undefined {
-  return getDB().tickets.find((t) => t.id === id);
+export async function findTicketById(id: string) {
+  return prisma.ticket.findUnique({
+    where: { id },
+    include: {
+      replies: {
+        include: { user: { select: { name: true, role: true } } },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  });
 }
 
-export function createTicket(userId: string, data: { subject: string; message: string; category?: string; priority?: string }): Ticket {
-  const db = getDB();
-  const ticket: Ticket = {
-    id: `ticket-${nanoid()}`,
-    subject: data.subject,
-    message: data.message,
-    status: 'open',
-    priority: (data.priority as any) || 'normal',
-    category: data.category || 'general',
-    userId,
-    createdAt: new Date().toISOString(),
-    replies: [],
-  };
-  db.tickets.push(ticket);
-  return ticket;
+export async function createTicket(userId: string, data: { subject: string; message: string; category?: string; priority?: string }) {
+  return prisma.ticket.create({
+    data: {
+      subject: data.subject,
+      message: data.message,
+      category: data.category || 'general',
+      priority: data.priority || 'normal',
+      userId,
+    },
+  });
 }
 
-export function addTicketReply(ticketId: string, userId: string, message: string, isAdmin: boolean): TicketReply | null {
-  const ticket = getDB().tickets.find((t) => t.id === ticketId);
-  if (!ticket) return null;
-  const reply: TicketReply = {
-    id: `reply-${nanoid()}`,
-    message,
-    userId,
-    isAdmin,
-    createdAt: new Date().toISOString(),
-  };
-  ticket.replies.push(reply);
-  return reply;
+export async function addTicketReply(ticketId: string, userId: string, message: string, isAdmin: boolean) {
+  return prisma.ticketReply.create({
+    data: { message, ticketId, userId, isAdmin },
+  });
 }
 
 // ========== STATS ==========
-export function getAdminStats() {
-  const db = getDB();
+export async function getAdminStats() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  return {
-    totalUsers: db.users.length,
-    totalKeys: db.apiKeys.length,
-    totalRequests: db.usageLogs.length,
-    todayRequests: db.usageLogs.filter((l) => new Date(l.createdAt) >= today).length,
-    activeKeys: db.apiKeys.filter((k) => k.active).length,
-  };
+  const [totalUsers, totalKeys, totalRequests, todayRequests, activeKeys] = await Promise.all([
+    prisma.user.count(),
+    prisma.apiKey.count(),
+    prisma.usageLog.count(),
+    prisma.usageLog.count({ where: { createdAt: { gte: today } } }),
+    prisma.apiKey.count({ where: { active: true } }),
+  ]);
+
+  return { totalUsers, totalKeys, totalRequests, todayRequests, activeKeys };
 }
 
-export function getDailyUsage(days: number): { date: string; requests: number }[] {
-  const db = getDB();
+export async function getDailyUsage(days: number) {
   const result: { date: string; requests: number }[] = [];
   const now = new Date();
   for (let i = days - 1; i >= 0; i--) {
     const dayStart = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-    const count = db.usageLogs.filter((l) => {
-      const d = new Date(l.createdAt);
-      return d >= dayStart && d < dayEnd;
-    }).length;
+    const count = await prisma.usageLog.count({
+      where: { createdAt: { gte: dayStart, lt: dayEnd } },
+    });
     result.push({ date: dayStart.toISOString().split('T')[0], requests: count });
   }
   return result;
 }
 
-export function getTierDistribution(): { tier: string; count: number }[] {
-  const db = getDB();
-  const map = new Map<string, number>();
-  db.users.forEach((u) => map.set(u.tier, (map.get(u.tier) || 0) + 1));
-  return Array.from(map.entries()).map(([tier, count]) => ({ tier, count }));
+export async function getTierDistribution() {
+  const users = await prisma.user.groupBy({ by: ['tier'], _count: true });
+  return users.map((u) => ({ tier: u.tier, _count: u._count }));
 }
 
 // ========== RATE LIMITS ==========
-export function getRateLimits(): { tier: string; rpm: number; rph: number; rpd: number }[] {
-  return [
-    { tier: 'free', rpm: 10, rph: 100, rpd: 1000 },
-    { tier: 'developer', rpm: 60, rph: 2000, rpd: 20000 },
-    { tier: 'enterprise', rpm: 300, rph: 10000, rpd: 100000 },
-  ];
+export async function getRateLimits() {
+  const configs = await prisma.rateLimitConfig.findMany();
+  if (configs.length === 0) {
+    return [
+      { tier: 'free', rpm: 10, rph: 100, rpd: 1000 },
+      { tier: 'developer', rpm: 60, rph: 2000, rpd: 20000 },
+      { tier: 'enterprise', rpm: 300, rph: 10000, rpd: 100000 },
+    ];
+  }
+  return configs.map((c) => ({ tier: c.tier, rpm: c.requestsPerMinute, rph: c.requestsPerHour, rpd: c.requestsPerDay }));
+}
+
+export async function updateRateLimitConfig(tier: string, rpm: number, rph: number, rpd: number) {
+  return prisma.rateLimitConfig.upsert({
+    where: { tier },
+    update: { requestsPerMinute: rpm, requestsPerHour: rph, requestsPerDay: rpd },
+    create: { tier, requestsPerMinute: rpm, requestsPerHour: rph, requestsPerDay: rpd },
+  });
+}
+
+export async function countTodayLogsByKey(apiKeyId: string) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return prisma.usageLog.count({ where: { apiKeyId, createdAt: { gte: today } } });
 }

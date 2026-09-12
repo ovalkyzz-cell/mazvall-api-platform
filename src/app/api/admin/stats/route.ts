@@ -5,10 +5,12 @@ import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-    const stats = getAdminStats();
-    const dailyUsage = getDailyUsage(14);
-    const tierDistribution = getTierDistribution();
-    const recentLogs = getRecentLogs(20);
+    const [stats, dailyUsage, tierDistribution, recentLogs] = await Promise.all([
+      getAdminStats(),
+      getDailyUsage(14),
+      getTierDistribution(),
+      getRecentLogs(20),
+    ]);
 
     return successResponse({ stats, dailyUsage, tierDistribution, recentLogs });
   } catch (error: any) {

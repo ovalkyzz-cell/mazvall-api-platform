@@ -12,14 +12,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ success: false, error: 'Message required' }, { status: 400 });
     }
 
-    const ticket = findTicketById(params.id);
+    const ticket = await findTicketById(params.id);
     if (!ticket || ticket.userId !== user.userId) {
       return NextResponse.json({ success: false, error: 'Ticket not found' }, { status: 404 });
     }
 
-    const reply = addTicketReply(params.id, user.userId, message, false);
+    const reply = await addTicketReply(params.id, user.userId, message, user.role === 'admin');
     return successResponse({ reply }, 'Reply sent');
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -29,13 +29,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const ticket = findTicketById(params.id);
+    const ticket = await findTicketById(params.id);
     if (!ticket || ticket.userId !== user.userId) {
       return NextResponse.json({ success: false, error: 'Ticket not found' }, { status: 404 });
     }
 
     return successResponse({ ticket });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

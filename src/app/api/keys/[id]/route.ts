@@ -7,14 +7,14 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const key = findApiKeyById(params.id);
+    const key = await findApiKeyById(params.id);
     if (!key || key.userId !== user.userId) {
       return NextResponse.json({ success: false, error: 'Key not found' }, { status: 404 });
     }
 
-    deleteApiKey(params.id);
+    await deleteApiKey(params.id);
     return successResponse(null, 'API key deleted');
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -24,16 +24,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const key = findApiKeyById(params.id);
+    const key = await findApiKeyById(params.id);
     if (!key || key.userId !== user.userId) {
       return NextResponse.json({ success: false, error: 'Key not found' }, { status: 404 });
     }
 
     const { active } = await req.json();
-    const updated = toggleApiKey(params.id, active);
-
+    const updated = await toggleApiKey(params.id, active);
     return successResponse({ apiKey: updated }, 'API key updated');
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

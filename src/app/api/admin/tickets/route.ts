@@ -5,7 +5,7 @@ import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-    const tickets = getAllTickets();
+    const tickets = await getAllTickets();
     return successResponse({ tickets });
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');

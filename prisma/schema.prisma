@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -21,46 +21,34 @@ model User {
   usageLogs     UsageLog[]
   tickets       Ticket[]
   ticketReplies TicketReply[]
-  sessions      Session[]
-}
-
-model Session {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ip        String?
-  userAgent String?
-  expiresAt DateTime
-  createdAt DateTime @default(now())
 }
 
 model ApiKey {
-  id          String   @id @default(cuid())
-  key         String   @unique
+  id          String    @id @default(cuid())
+  key         String    @unique
   name        String
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  active      Boolean  @default(true)
-  rateLimit   Int      @default(100)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  active      Boolean   @default(true)
+  rateLimit   Int       @default(100)
   expiresAt   DateTime?
   lastUsedAt  DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   usageLogs   UsageLog[]
 }
 
 model UsageLog {
-  id        String   @id @default(cuid())
-  apiKeyId  String
-  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint  String
-  method    String
-  status    Int
+  id           String   @id @default(cuid())
+  apiKeyId     String
+  apiKey       ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint     String
+  method       String
+  status       Int
   responseTime Int
-  ip        String?
-  createdAt DateTime @default(now())
+  ip           String?
+  createdAt    DateTime @default(now())
 }
 
 model Ticket {
@@ -89,12 +77,12 @@ model TicketReply {
 }
 
 model RateLimitConfig {
-  id          String @id @default(cuid())
-  tier        String @unique
-  requestsPerMinute Int @default(100)
-  requestsPerHour   Int @default(1000)
-  requestsPerDay    Int @default(10000)
-  description String?
+  id               String @id @default(cuid())
+  tier             String @unique
+  requestsPerMinute Int  @default(100)
+  requestsPerHour   Int  @default(1000)
+  requestsPerDay    Int  @default(10000)
+  description      String?
 }
 
 model SystemConfig {

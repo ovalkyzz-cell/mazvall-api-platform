@@ -10,13 +10,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'All fields required' }, { status: 400 });
     }
 
-    const existing = findUserByEmail(email);
+    const existing = await findUserByEmail(email);
     if (existing) {
       return NextResponse.json({ success: false, error: 'Email already registered' }, { status: 409 });
     }
 
     const hashed = await hashPassword(password);
-    const user = createUser({ email, password: hashed, name });
+    const user = await createUser({ email, password: hashed, name });
 
     const token = signToken({ userId: user.id, email: user.email, role: user.role });
 
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     response.cookies.set('mazvall_token', token, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7,
       path: '/',
