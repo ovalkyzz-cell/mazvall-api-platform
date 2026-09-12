@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/prisma';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
 
 export interface AuthUser {
   userId: string;
@@ -19,7 +21,11 @@ export function getTokenFromRequest(req: NextRequest): string | null {
 export function authenticate(req: NextRequest): AuthUser | null {
   const token = getTokenFromRequest(req);
   if (!token) return null;
-  return verifyToken(token);
+  try {
+    return jwt.verify(token, JWT_SECRET) as AuthUser;
+  } catch {
+    return null;
+  }
 }
 
 export function requireAuth(req: NextRequest): AuthUser {
