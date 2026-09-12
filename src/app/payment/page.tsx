@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
@@ -16,7 +16,7 @@ interface PaymentStatus {
   expiresAt?: string;
 }
 
-export default function PaymentPage() {
+function PaymentContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const transactionId = searchParams.get("transactionId");
@@ -229,5 +229,13 @@ export default function PaymentPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-neon-cyan" size={32} /></div>}>
+      <PaymentContent />
+    </Suspense>
   );
 }

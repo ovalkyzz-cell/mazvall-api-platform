@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { generateApiKeyString } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 
+export const dynamic = 'force-dynamic';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
 
 function verifyToken(token: string) {
