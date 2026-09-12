@@ -6,7 +6,7 @@ import Footer from "@/components/layout/Footer";
 import { motion } from "framer-motion";
 import { Copy, Check, ChevronDown, ChevronRight, Code2, Lock, Key, BarChart3, Shield, Zap } from "lucide-react";
 
-const BASE = "https://mazvall-official.my.id";
+const BASE = "https://api-mazval.zone.id";
 
 const endpoints = [
   {

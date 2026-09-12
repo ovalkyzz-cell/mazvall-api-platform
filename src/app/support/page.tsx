@@ -26,7 +26,7 @@ const faqs = [
   { q: "What is the rate limit?", a: "Free tier: 10 RPM / 100 RPH / 1000 RPD. Developer: 60 RPM / 2K RPH / 20K RPD. Enterprise: 300 RPM / 10K RPH / 100K RPD." },
   { q: "How do I authenticate API requests?", a: "Include the header 'Authorization: Bearer YOUR_JWT_TOKEN' in your requests. Get a token via /api/auth/login." },
   { q: "Can I upgrade my tier?", a: "Contact support or use the admin panel to change your tier. Tiers affect rate limits and features." },
-  { q: "What's the base URL for API calls?", a: "All API calls should be made to https://mazvall-official.my.id" },
+  { q: "What's the base URL for API calls?", a: "All API calls should be made to https://api-mazval.zone.id" },
 ];
 
 export default function SupportPage() {

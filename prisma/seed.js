@@ -63,7 +63,7 @@ async function main() {
   const configs = [
     { key: 'site_name', value: "Api's Mazvall" },
     { key: 'site_description', value: 'Professional REST API Platform & Documentation' },
-    { key: 'api_base_url', value: 'https://mazvall-official.my.id' },
+    { key: 'api_base_url', value: 'https://api-mazval.zone.id' },
     { key: 'maintenance_mode', value: 'false' },
   ];
 

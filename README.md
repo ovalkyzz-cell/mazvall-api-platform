@@ -2,7 +2,7 @@
 
 Professional REST API platform with interactive documentation, rate limiting, and developer tools.
 
-**Base URL:** `https://mazvall-official.my.id`
+**Base URL:** `https://api-mazval.zone.id`
 
 ## Tech Stack
 
@@ -48,7 +48,7 @@ Copy `.env.example` to `.env` and update:
 ```env
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="your-super-secret-key"
-NEXT_PUBLIC_API_BASE="https://mazvall-official.my.id"
+NEXT_PUBLIC_API_BASE="https://api-mazval.zone.id"
 ```
 
 ### 4. Run Development
@@ -110,7 +110,7 @@ git push -u origin main
 3. Configure environment variables:
    - `DATABASE_URL` — Use a cloud PostgreSQL (e.g., Neon, Supabase, Railway)
    - `JWT_SECRET` — Your secret key
-   - `NEXT_PUBLIC_API_BASE` — `https://mazvall-official.my.id`
+   - `NEXT_PUBLIC_API_BASE` — `https://api-mazval.zone.id`
 4. Update `prisma/schema.prisma` provider from `sqlite` to `postgresql`
 5. Deploy
 

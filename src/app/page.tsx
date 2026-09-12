@@ -95,7 +95,7 @@ export default function HomePage() {
             className="inline-block glass-card px-6 py-4 rounded-2xl"
           >
             <p className="text-xs text-white/30 mb-2 tracking-wider uppercase">Base API Endpoint</p>
-            <code className="text-neon-cyan font-mono text-sm sm:text-base">https://mazvall-official.my.id</code>
+            <code className="text-neon-cyan font-mono text-sm sm:text-base">https://api-mazval.zone.id</code>
           </motion.div>
         </div>
       </section>

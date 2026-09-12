@@ -4,7 +4,7 @@ import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "Api's Mazvall — REST API Platform & Documentation",
-  description: "Professional REST API platform with interactive documentation, rate limiting, and developer tools. Base URL: https://mazvall-official.my.id",
+  description: "Professional REST API platform with interactive documentation, rate limiting, and developer tools. Base URL: https://api-mazval.zone.id",
   keywords: ["API", "REST", "documentation", "Mazvall", "developer tools"],
 };
 

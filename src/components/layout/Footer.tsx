@@ -32,7 +32,7 @@ export default function Footer() {
             <h4 className="font-display font-semibold text-xs uppercase tracking-wider text-white/40 mb-4">API</h4>
             <ul className="space-y-2">
               <li><span className="text-sm text-white/30">Base URL:</span></li>
-              <li><code className="text-xs text-neon-cyan font-mono">https://mazvall-official.my.id</code></li>
+              <li><code className="text-xs text-neon-cyan font-mono">https://api-mazval.zone.id</code></li>
               <li><Link href="/docs" className="text-sm text-white/30 hover:text-neon-cyan transition-colors">API Reference</Link></li>
             </ul>
           </div>

@@ -9,7 +9,7 @@ export const prisma = globalForPrisma.prisma || new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://mazvall-official.my.id';
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api-mazval.zone.id';
 
 export const generateApiKey = (): string => {
   const nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 12);
