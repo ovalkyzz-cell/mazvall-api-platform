@@ -5,8 +5,10 @@ import { randomBytes } from 'crypto';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-export const prisma = globalForPrisma.prisma || new PrismaClient();
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+export const prisma = globalForPrisma.prisma || new PrismaClient({
+  log: process.env.NODE_ENV === 'production' ? ['error'] : ['query'],
+});
+globalForPrisma.prisma = prisma;
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api-mazval.zone.id';
