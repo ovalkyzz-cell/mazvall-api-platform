@@ -8,7 +8,19 @@ import { Copy, Check, ChevronDown, ChevronRight, Code2, Lock, Key, BarChart3, Sh
 
 const BASE = "https://api-mazval.zone.id";
 
-const sections = [
+interface Endpoint {
+  method: string;
+  path: string;
+  title: string;
+  desc: string;
+  auth: boolean;
+  body?: string;
+  response?: string;
+  params?: string;
+  example?: string;
+}
+
+const sections: { title: string; icon: JSX.Element; endpoints: Endpoint[] }[] = [
   {
     title: "Autentikasi",
     icon: <Lock size={18} className="text-neon-magenta" />,
