@@ -5,7 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { Key, Plus, Trash2, Power, PowerOff, Copy, BarChart3, Clock, Activity, TrendingUp } from "lucide-react";
+import { Key, Plus, Trash2, Power, PowerOff, Copy, BarChart3, Clock, Activity, TrendingUp, LogOut } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 interface ApiKeyItem {
@@ -26,7 +26,7 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
-  const { user, token, loading: authLoading } = useAuth();
+  const { user, token, logout, loading: authLoading } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -95,9 +95,18 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="font-display text-2xl font-bold mb-1">Dashboard</h1>
-          <p className="text-sm text-white/30">Selamat datang kembali, {user.name}. Berikut ringkasan API kamu.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-bold mb-1">Dashboard</h1>
+            <p className="text-sm text-white/30">Selamat datang kembali, {user.name}. Berikut ringkasan API kamu.</p>
+          </div>
+          <button
+            onClick={() => { logout(); router.push("/"); }}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 text-sm transition-colors"
+          >
+            <LogOut size={16} />
+            Keluar
+          </button>
         </div>
 
         {/* Stats */}

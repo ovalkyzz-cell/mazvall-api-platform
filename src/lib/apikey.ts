@@ -6,19 +6,8 @@ export interface ApiKeyUser {
   email: string;
   role: string;
   tier: string;
+  planId?: string | null;
 }
-
-export interface RateLimitConfig {
-  rpm: number;
-  rph: number;
-  rpd: number;
-}
-
-const TIER_LIMITS: Record<string, RateLimitConfig> = {
-  free: { rpm: 10, rph: 100, rpd: 1000 },
-  developer: { rpm: 60, rph: 2000, rpd: 20000 },
-  enterprise: { rpm: 300, rph: 10000, rpd: 100000 },
-};
 
 export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUser; keyId: string } | null> {
   const apiKey = req.headers.get('x-api-key') || req.nextUrl.searchParams.get('apikey');
@@ -26,17 +15,28 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
 
   const key = await prisma.apiKey.findUnique({
     where: { key: apiKey },
-    include: { user: { select: { id: true, email: true, role: true, tier: true, status: true } } },
+    include: { user: { select: { id: true, email: true, role: true, tier: true, status: true, planId: true } } },
   });
 
   if (!key || !key.active) return null;
   if (key.user.status !== 'active') return null;
 
-  return { user: { userId: key.user.id, email: key.user.email, role: key.user.role, tier: key.user.tier }, keyId: key.id };
+  return { user: { userId: key.user.id, email: key.user.email, role: key.user.role, tier: key.user.tier, planId: key.user.planId }, keyId: key.id };
 }
 
-export async function checkRateLimit(keyId: string, tier: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
-  const limits = TIER_LIMITS[tier] || TIER_LIMITS.free;
+export async function checkRateLimit(keyId: string, userId: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { planId: true } });
+  let rpd = 5, rpm = 1, rph = 5;
+
+  if (user?.planId) {
+    const plan = await prisma.plan.findUnique({ where: { id: user.planId } });
+    if (plan) {
+      rpd = plan.requestsPerDay;
+      rpm = plan.requestsPerMin;
+      rph = plan.requestsPerHour;
+    }
+  }
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -48,11 +48,11 @@ export async function checkRateLimit(keyId: string, tier: string): Promise<{ all
     prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: minAgo } } }),
   ]);
 
-  if (minCount >= limits.rpm) return { allowed: false, remaining: 0, limit: limits.rpm };
-  if (hourCount >= limits.rph) return { allowed: false, remaining: 0, limit: limits.rph };
-  if (todayCount >= limits.rpd) return { allowed: false, remaining: 0, limit: limits.rpd };
+  if (minCount >= rpm) return { allowed: false, remaining: 0, limit: rpm };
+  if (hourCount >= rph) return { allowed: false, remaining: 0, limit: rph };
+  if (todayCount >= rpd) return { allowed: false, remaining: 0, limit: rpd };
 
-  return { allowed: true, remaining: limits.rpd - todayCount, limit: limits.rpd };
+  return { allowed: true, remaining: rpd - todayCount, limit: rpd };
 }
 
 export async function logApiUsage(keyId: string, userId: string, endpoint: string, method: string, status: number, ip?: string) {

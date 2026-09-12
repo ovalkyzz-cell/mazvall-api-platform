@@ -15,6 +15,10 @@ model User {
   role          String    @default("user")
   tier          String    @default("free")
   status        String    @default("active")
+  planId        String?
+  planExpiry    DateTime?
+  requestsToday Int       @default(0)
+  lastRequestReset DateTime @default(now())
   avatar        String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -22,6 +26,37 @@ model User {
   usageLogs     UsageLog[]
   tickets       Ticket[]
   ticketReplies TicketReply[]
+  transactions  Transaction[]
+}
+
+model Plan {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  slug            String   @unique
+  price           Int
+  requestsPerDay  Int
+  requestsPerMin  Int
+  requestsPerHour Int
+  description     String
+  features        String
+  popular         Boolean  @default(false)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId          String
+  amount          Int
+  transactionId   String?
+  qrUrl           String?
+  paymentUrl      String?
+  status          String   @default("pending")
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model ApiKey {

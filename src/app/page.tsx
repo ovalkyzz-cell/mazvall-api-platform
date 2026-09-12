@@ -17,9 +17,11 @@ const features = [
 ];
 
 const tiers = [
-  { name: "Gratis", price: "0", requests: "1.000/hari", features: ["10 RPM", "100 RPH", "1 Kunci API", "Dokumentasi Dasar", "Dukungan Komunitas"] },
-  { name: "Developer", price: "29", requests: "20.000/hari", features: ["60 RPM", "2.000 RPH", "10 Kunci API", "Dokumentasi Lengkap", "Dukungan Prioritas", "Analitik"], popular: true },
-  { name: "Enterprise", price: "199", requests: "100.000/hari", features: ["300 RPM", "10.000 RPH", "Kunci Tanpa Batas", "Dokumentasi Kustom", "Dukungan 24/7", "SLA", "Webhooks"], enterprise: true },
+  { name: "Gratis", price: "0", requests: "5 request/hari", features: ["10 RPM", "1 Kunci API", "Dokumentasi Dasar", "Dukungan Komunitas"] },
+  { name: "Starter", price: "10.000", requests: "500 request/hari", features: ["30 RPM", "5 Kunci API", "Dokumentasi Lengkap", "Dukungan Email", "Analitik Dasar"] },
+  { name: "Pro", price: "20.000", requests: "2.000 request/hari", features: ["60 RPM", "10 Kunci API", "Dokumentasi Lengkap", "Dukungan Prioritas", "Analitik Lanjutan", "Webhooks"], popular: true },
+  { name: "Business", price: "30.000", requests: "5.000 request/hari", features: ["120 RPM", "25 Kunci API", "Dokumentasi Kustom", "Dukungan 24/7", "SLA 99.9%", "Rate Limit Kustom"] },
+  { name: "Enterprise", price: "35.000", requests: "10.000 request/hari", features: ["300 RPM", "Kunci Tanpa Batas", "Dokumentasi Kustom", "Dukungan 24/7 Dedicated", "SLA 99.99%", "Webhooks", "Infrastruktur Kustom"], enterprise: true },
 ];
 
 const stats = [
@@ -158,40 +160,40 @@ export default function HomePage() {
             <h2 className="font-display text-3xl sm:text-5xl font-bold">Pilih <span className="gradient-text">tier kamu</span></h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
             {tiers.map((t, i) => (
               <motion.div
                 key={t.name}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: i * 0.15 }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
                 viewport={{ once: true }}
-                className={`glass-card p-8 ${t.popular ? "border-neon-cyan/30 ring-1 ring-neon-cyan/20" : ""} ${t.enterprise ? "border-neon-magenta/30 ring-1 ring-neon-magenta/20" : ""}`}
+                className={`glass-card p-6 ${t.popular ? "border-neon-cyan/30 ring-1 ring-neon-cyan/20" : ""} ${t.enterprise ? "border-neon-magenta/30 ring-1 ring-neon-magenta/20" : ""}`}
               >
                 {t.popular && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neon-cyan/10 text-neon-cyan text-xs font-medium mb-4">
-                    <Zap size={12} /> Paling Populer
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neon-cyan/10 text-neon-cyan text-xs font-medium mb-3">
+                    <Zap size={12} /> POPULER
                   </div>
                 )}
-                <h3 className="font-display font-bold text-xl mb-2">{t.name}</h3>
+                <h3 className="font-display font-bold text-lg mb-2">{t.name}</h3>
                 <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-4xl font-extrabold">${t.price}</span>
-                  <span className="text-white/30 text-sm">/bulan</span>
+                  <span className="text-xs text-white/40">Rp</span>
+                  <span className="text-3xl font-extrabold">{t.price}</span>
                 </div>
-                <p className="text-sm text-white/30 mb-6">{t.requests}</p>
-                <ul className="space-y-3 mb-8">
+                <p className="text-xs text-white/30 mb-4">{t.requests}</p>
+                <ul className="space-y-2 mb-6">
                   {t.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-white/50">
-                      <CheckCircle size={14} className="text-neon-cyan shrink-0" />
+                    <li key={f} className="flex items-center gap-2 text-xs text-white/50">
+                      <CheckCircle size={12} className="text-neon-cyan shrink-0" />
                       {f}
                     </li>
                   ))}
                 </ul>
                 <Link
-                  href={user ? "/dashboard" : "/auth/register"}
-                  className={`block text-center py-3 rounded-xl text-sm font-medium transition-all ${t.popular || t.enterprise ? "btn-primary" : "btn-ghost"}`}
+                  href="/pricing"
+                  className={`block text-center py-2.5 rounded-xl text-sm font-medium transition-all ${t.popular || t.enterprise ? "btn-primary" : "btn-ghost"}`}
                 >
-                  {t.popular || t.enterprise ? "Mulai Sekarang" : "Mulai Gratis"}
+                  Mulai Sekarang
                 </Link>
               </motion.div>
             ))}

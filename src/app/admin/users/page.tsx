@@ -5,7 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { Users, Trash2, Edit, ChevronDown, Check, X, Ban, ShieldCheck } from "lucide-react";
+import { Users, Trash2, Edit, ChevronDown, CheckCircle, XCircle, Ban, ShieldCheck } from "lucide-react";
 
 interface UserItem {
   id: string;
@@ -181,46 +181,50 @@ export default function AdminUsersPage() {
                   <td className="text-sm">{u._count.usageLogs.toLocaleString()}</td>
                   <td className="text-xs text-white/30">{new Date(u.createdAt).toLocaleDateString()}</td>
                   <td>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                       {u.status === "pending" && u.role !== "admin" && (
                         <>
                           <button
                             onClick={() => updateStatus(u.id, "active")}
-                            title="Setujui"
-                            className="p-1.5 rounded-lg text-green-400/50 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 text-xs font-medium transition-colors"
                           >
-                            <Check size={14} />
+                            <CheckCircle size={14} />
+                            Setujui
                           </button>
                           <button
                             onClick={() => updateStatus(u.id, "rejected")}
-                            title="Tolak"
-                            className="p-1.5 rounded-lg text-orange-400/50 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 text-xs font-medium transition-colors"
                           >
-                            <X size={14} />
+                            <XCircle size={14} />
+                            Tolak
                           </button>
                         </>
                       )}
                       {u.status === "active" && u.role !== "admin" && (
                         <button
                           onClick={() => updateStatus(u.id, "banned")}
-                          title="Blokir"
-                          className="p-1.5 rounded-lg text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 text-xs font-medium transition-colors"
                         >
                           <Ban size={14} />
+                          Blokir
                         </button>
                       )}
                       {u.status === "banned" && u.role !== "admin" && (
                         <button
                           onClick={() => updateStatus(u.id, "active")}
-                          title="Buka Blokir"
-                          className="p-1.5 rounded-lg text-green-400/50 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 text-xs font-medium transition-colors"
                         >
                           <ShieldCheck size={14} />
+                          Buka Blokir
                         </button>
                       )}
                       {u.role !== "admin" && (
-                        <button onClick={() => deleteUser(u.id)} title="Hapus" className="p-1.5 rounded-lg text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                        <button
+                          onClick={() => deleteUser(u.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 text-xs font-medium transition-colors"
+                        >
                           <Trash2 size={14} />
+                          Hapus
                         </button>
                       )}
                     </div>
