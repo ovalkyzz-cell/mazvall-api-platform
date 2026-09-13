@@ -18,6 +18,7 @@ interface Plan {
   description: string;
   features: string;
   popular: boolean;
+  active: boolean;
 }
 
 const planIcon = (name: string) => {
