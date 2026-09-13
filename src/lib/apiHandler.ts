@@ -8,7 +8,7 @@ export function createApiHandler(servicePath: string) {
     try {
       const auth = await validateApiKey(req);
       if (!auth) {
-        return NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif' }, { status: 401 });
+        return NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint: servicePath }, { status: 401 });
       }
 
       const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role);

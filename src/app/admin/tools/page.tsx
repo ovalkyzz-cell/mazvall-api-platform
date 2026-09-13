@@ -110,9 +110,8 @@ export default function AdminToolsPage() {
       const val = inputs[key]?.[p.name];
       if (val) params.set(p.name, val);
     });
-    params.set("apikey", "admin");
 
-    const url = `https://api-mazval.zone.id${ep.path}?${params.toString()}`;
+    const url = `/api${ep.path.replace("/api", "")}?${params.toString()}`;
     const start = performance.now();
 
     try {
