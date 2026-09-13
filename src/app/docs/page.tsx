@@ -4,7 +4,7 @@ import { useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { motion } from "framer-motion";
-import { Copy, Check, ChevronDown, ChevronRight, Code2, Lock, Key, BarChart3, Shield, Zap, Bot, Download, Info, Mail, Wrench } from "lucide-react";
+import { Copy, Check, ChevronDown, ChevronRight, Code2, Lock, Key, BarChart3, Shield, Zap, Bot, Download, Info, Mail, Wrench, ShieldCheck, Scan } from "lucide-react";
 
 const BASE = "https://api-mazval.zone.id";
 
@@ -105,6 +105,14 @@ const sections: { title: string; icon: JSX.Element; endpoints: Endpoint[] }[] = 
       { method: "GET", path: "/api/tools/ip-lookup", title: "IP Lookup", desc: "Cek info IP address", auth: true, params: "target", example: `${BASE}/api/tools/ip-lookup?target=8.8.8.8&apikey=MVAL-XXX` },
       { method: "GET", path: "/api/tools/domain-recon", title: "Domain Recon", desc: "Rekonstruksi informasi domain", auth: true, params: "domain", example: `${BASE}/api/tools/domain-recon?domain=github.com&apikey=MVAL-XXX` },
       { method: "GET", path: "/api/tools/ssweb", title: "Screenshot Web", desc: "Ambil screenshot halaman web", auth: true, params: "url", example: `${BASE}/api/tools/ssweb?url=https://example.com&apikey=MVAL-XXX` },
+    ],
+  },
+  {
+    title: "AM Verif",
+    icon: <ShieldCheck size={18} className="text-red-400" />,
+    endpoints: [
+      { method: "GET", path: "/api/tools/am-verif-send", title: "Kirim Magic Link", desc: "Kirim magic link verifikasi ke email Alight Motion", auth: true, params: "email", example: `${BASE}/api/tools/am-verif-send?email=user@gmail.com&apikey=MVAL-XXX` },
+      { method: "GET", path: "/api/tools/am-verif-check", title: "Verifikasi Premium", desc: "Verifikasi token dan aktifkan Alight Motion Premium", auth: true, params: "email, token", example: `${BASE}/api/tools/am-verif-check?email=user@gmail.com&token=FIREBASE_TOKEN&apikey=MVAL-XXX` },
     ],
   },
 ];
