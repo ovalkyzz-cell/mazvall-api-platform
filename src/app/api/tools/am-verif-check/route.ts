@@ -15,29 +15,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Batas rate limit tercapai', endpoint: '/api/tools/am-verif-check' }, { status: 429 });
     }
 
-    const params = new URLSearchParams();
-    req.nextUrl.searchParams.forEach((value, key) => {
-      params.set(key, value);
-    });
+    const email = req.nextUrl.searchParams.get('email');
+    const token = req.nextUrl.searchParams.get('token');
+    if (!email || !email.includes('@')) {
+      return NextResponse.json({ success: false, error: 'Parameter email tidak valid', endpoint: '/api/tools/am-verif-check' }, { status: 400 });
+    }
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Parameter token tidak boleh kosong', endpoint: '/api/tools/am-verif-check' }, { status: 400 });
+    }
 
-    const response = await fetch(`${AM_VERIF_BASE}/verify-link?${params.toString()}`, {
-      headers: { 'User-Agent': 'MazVall-API-Platform/1.0' },
+    const response = await fetch(`${AM_VERIF_BASE}/verify-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'MazVall-API-Platform/1.0' },
+      body: JSON.stringify({ email, magicLink: token }),
       signal: AbortSignal.timeout(30000),
     });
 
-    let body: any;
-    try {
-      body = await response.json();
-    } catch {
-      body = { success: false, error: 'Gagal memproses response' };
-    }
+    const body = await response.json();
 
     if (body && typeof body === 'object') {
-      if ('author' in body) body.author = 'mazval';
+      body.author = 'mazval';
       body.endpoint = '/api/tools/am-verif-check';
     }
 
-    await logApiUsage(auth.keyId, auth.user.userId, '/tools/am-verif-check', 'GET', response.status, req.headers.get('x-forwarded-for') || undefined);
+    await logApiUsage(auth.keyId, auth.user.userId, '/tools/am-verif-check', 'POST', response.status, req.headers.get('x-forwarded-for') || undefined);
 
     return NextResponse.json(body, {
       status: response.status,
