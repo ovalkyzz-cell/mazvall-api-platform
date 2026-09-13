@@ -127,6 +127,8 @@ export async function GET(req: NextRequest) {
               status: 'success',
               qrUrl: data.data?.qr_url || transaction.qrUrl,
               paymentUrl: data.data?.payment_url || transaction.paymentUrl,
+              amount: transaction.amount,
+              planName: plan.name,
               apiKey: newKey.key,
             },
           });
@@ -140,6 +142,8 @@ export async function GET(req: NextRequest) {
         status: status || transaction.status,
         qrUrl: data.data?.qr_url || transaction.qrUrl,
         paymentUrl: data.data?.payment_url || transaction.paymentUrl,
+        amount: transaction.amount,
+        planName: (await prisma.plan.findUnique({ where: { id: transaction.planId } }))?.name || null,
       },
     });
   } catch (error) {
