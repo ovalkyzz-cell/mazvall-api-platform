@@ -35,6 +35,7 @@ const FEATURE_MAP: Record<string, string> = {
   '/tools/cek-nomor': 'tools',
   '/tools/am-verif-send': 'tools',
   '/tools/am-verif-check': 'tools',
+  '/tools/nftoken-generate': 'tools',
   '/tempmail/create': 'tempmail',
   '/tempmail/inbox': 'tempmail',
 };

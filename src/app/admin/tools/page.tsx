@@ -69,6 +69,7 @@ const endpoints: Endpoint[] = [
   { method: "GET", path: "/api/tools/ssweb", title: "SS Web", desc: "Screenshot website", category: "Tools", icon: Image, params: [{ name: "url", placeholder: "URL website", required: true }] },
   { method: "GET", path: "/api/tools/domain-recon", title: "Domain Recon", desc: "Reconnaissance domain", category: "Tools", icon: Globe, params: [{ name: "domain", placeholder: "example.com", required: true }] },
   { method: "GET", path: "/api/tools/cek-nomor", title: "Cek Nomor", desc: "Cek info nomor HP", category: "Tools", icon: Hash, params: [{ name: "number", placeholder: "08xxx", required: true }] },
+  { method: "GET", path: "/api/tools/nftoken-generate", title: "NfToken Generate", desc: "Generate token Netflix Premium", category: "Tools", icon: Sparkles, params: [{ name: "count", placeholder: "Jumlah token (1-10)" }] },
 
   // TempMail
   { method: "GET", path: "/api/tempmail/create", title: "Create Email", desc: "Buat email temporary", category: "TempMail", icon: Mail, params: [] },

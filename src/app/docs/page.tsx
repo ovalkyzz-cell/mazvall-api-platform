@@ -105,6 +105,7 @@ const sections: { title: string; icon: JSX.Element; endpoints: Endpoint[] }[] = 
       { method: "GET", path: "/api/tools/ip-lookup", title: "IP Lookup", desc: "Cek info IP address", auth: true, params: "target", example: `${BASE}/api/tools/ip-lookup?target=8.8.8.8&apikey=MVAL-XXX` },
       { method: "GET", path: "/api/tools/domain-recon", title: "Domain Recon", desc: "Rekonstruksi informasi domain", auth: true, params: "domain", example: `${BASE}/api/tools/domain-recon?domain=github.com&apikey=MVAL-XXX` },
       { method: "GET", path: "/api/tools/ssweb", title: "Screenshot Web", desc: "Ambil screenshot halaman web", auth: true, params: "url", example: `${BASE}/api/tools/ssweb?url=https://example.com&apikey=MVAL-XXX` },
+      { method: "GET", path: "/api/tools/nftoken-generate", title: "NfToken Generate", desc: "Generate token Netflix Premium (1-10 token)", auth: true, params: "count", example: `${BASE}/api/tools/nftoken-generate?count=1&apikey=MVAL-XXX` },
     ],
   },
   {

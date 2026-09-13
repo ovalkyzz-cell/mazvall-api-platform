@@ -57,6 +57,7 @@ const allEndpoints: Endpoint[] = [
   { method: "GET", path: "/api/tools/cek-nomor", title: "Cek Nomor", desc: "Cek info nomor HP", category: "Tools", icon: Hash, params: [{ name: "number", placeholder: "08xxx", required: true }] },
   { method: "GET", path: "/api/tools/am-verif-send", title: "AM Verif Send", desc: "Kirim magic link", category: "Tools", icon: ShieldCheck, params: [{ name: "email", placeholder: "Email Alight Motion", required: true }] },
   { method: "GET", path: "/api/tools/am-verif-check", title: "AM Verif Check", desc: "Verifikasi premium", category: "Tools", icon: Scan, params: [{ name: "email", placeholder: "Email", required: true }, { name: "token", placeholder: "Token", required: true }] },
+  { method: "GET", path: "/api/tools/nftoken-generate", title: "NfToken Generate", desc: "Generate token Netflix Premium", category: "Tools", icon: Sparkles, params: [{ name: "count", placeholder: "Jumlah token (1-10)" }] },
 
   { method: "GET", path: "/api/tempmail/create", title: "Create Email", desc: "Buat email temporary", category: "TempMail", icon: Mail, params: [] },
   { method: "GET", path: "/api/tempmail/inbox", title: "Inbox", desc: "Cek inbox email", category: "TempMail", icon: Mail, params: [{ name: "email", placeholder: "Email temporary", required: true }] },
