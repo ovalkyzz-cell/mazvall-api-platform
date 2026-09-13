@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import {
   Bot, Download, Info, Wrench, Mail, Play, Loader2, Copy, CheckCircle,
   ChevronDown, ChevronRight, Sparkles, Globe, Image, Music, MessageSquare,
-  FileText, Search, Hash, Video, Headphones, Link2, Shield
+  FileText, Search, Hash, Video, Headphones, Link2, Shield, Scan, ShieldCheck
 } from "lucide-react";
 
 interface Param {
@@ -73,6 +73,10 @@ const endpoints: Endpoint[] = [
   // TempMail
   { method: "GET", path: "/api/tempmail/create", title: "Create Email", desc: "Buat email temporary", category: "TempMail", icon: Mail, params: [] },
   { method: "GET", path: "/api/tempmail/inbox", title: "Inbox", desc: "Cek inbox email", category: "TempMail", icon: Mail, params: [{ name: "email", placeholder: "Email temporary", required: true }] },
+
+  // AM Verif
+  { method: "GET", path: "/api/tools/am-verif-send", title: "AM Verif - Send Link", desc: "Kirim link verifikasi", category: "AM Verif", icon: ShieldCheck, params: [{ name: "number", placeholder: "Nomor HP", required: true }] },
+  { method: "GET", path: "/api/tools/am-verif-check", title: "AM Verif - Check", desc: "Cek status verifikasi", category: "AM Verif", icon: Scan, params: [{ name: "number", placeholder: "Nomor HP", required: true }, { name: "code", placeholder: "Kode verifikasi", required: true }] },
 ];
 
 const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -81,6 +85,7 @@ const categoryColors: Record<string, { bg: string; text: string; border: string 
   Info: { bg: "bg-cyan-500/10", text: "text-cyan-400", border: "border-cyan-500/20" },
   Tools: { bg: "bg-lime-500/10", text: "text-lime-400", border: "border-lime-500/20" },
   TempMail: { bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20" },
+  "AM Verif": { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/20" },
 };
 
 export default function AdminToolsPage() {
