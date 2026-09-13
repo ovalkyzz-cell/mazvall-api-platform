@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateApiKey, checkRateLimit, logApiUsage } from '@/lib/apikey';
+import { hasAccess } from '@/lib/featureAccess';
+import { prisma } from '@/lib/prisma';
 
 const AM_VERIF_BASE = 'https://satriam.satriadeveloperz.workers.dev/api/satriam';
+const SERVICE_PATH = '/tools/am-verif-check';
 
 export async function GET(req: NextRequest) {
   try {
     const auth = await validateApiKey(req);
     if (!auth) {
       return NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint: '/api/tools/am-verif-check' }, { status: 401 });
+    }
+
+    if (auth.user.role !== 'admin') {
+      let featureAccess = 'all';
+      if (auth.user.planId) {
+        const plan = await prisma.plan.findUnique({ where: { id: auth.user.planId }, select: { featureAccess: true } });
+        if (plan) featureAccess = plan.featureAccess;
+      } else {
+        featureAccess = 'ai,tempmail';
+      }
+      if (!hasAccess(featureAccess, SERVICE_PATH)) {
+        return NextResponse.json({ success: false, error: 'Paket kamu tidak memiliki akses ke endpoint ini.', endpoint: '/api/tools/am-verif-check' }, { status: 403 });
+      }
     }
 
     const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role);
@@ -38,7 +54,7 @@ export async function GET(req: NextRequest) {
       body.endpoint = '/api/tools/am-verif-check';
     }
 
-    await logApiUsage(auth.keyId, auth.user.userId, '/tools/am-verif-check', 'POST', response.status, req.headers.get('x-forwarded-for') || undefined);
+    await logApiUsage(auth.keyId, auth.user.userId, SERVICE_PATH, 'POST', response.status, req.headers.get('x-forwarded-for') || undefined);
 
     return NextResponse.json(body, {
       status: response.status,
