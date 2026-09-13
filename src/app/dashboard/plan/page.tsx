@@ -46,16 +46,31 @@ export default function PlanSelectionPage() {
     if (!token || purchasing) return;
     setPurchasing(true);
     try {
-      const res = await fetch("/api/payment/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ planId }),
-      });
-      const data = await res.json();
-      if (data.success && data.data.transactionId) {
-        router.push(`/payment?transactionId=${data.data.transactionId}`);
+      const plan = plans.find(p => p.id === planId);
+      if (plan && plan.price === 0) {
+        const res = await fetch("/api/plan/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ planId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert(data.error || "Gagal aktivasi");
+        }
       } else {
-        alert(data.error || "Gagal membuat transaksi");
+        const res = await fetch("/api/payment/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ planId }),
+        });
+        const data = await res.json();
+        if (data.success && data.data.transactionId) {
+          router.push(`/payment?transactionId=${data.data.transactionId}`);
+        } else {
+          alert(data.error || "Gagal membuat transaksi");
+        }
       }
     } catch {
       alert("Terjadi kesalahan");
