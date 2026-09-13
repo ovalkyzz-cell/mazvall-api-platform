@@ -16,6 +16,7 @@ interface Plan {
   description: string;
   features: string;
   popular: boolean;
+  active: boolean;
 }
 
 export default function PlanSelectionPage() {
