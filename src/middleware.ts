@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith('/admin')) {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('mazvall_token')?.value;
     if (!token) {
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
