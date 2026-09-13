@@ -75,8 +75,8 @@ const endpoints: Endpoint[] = [
   { method: "GET", path: "/api/tempmail/inbox", title: "Inbox", desc: "Cek inbox email", category: "TempMail", icon: Mail, params: [{ name: "email", placeholder: "Email temporary", required: true }] },
 
   // AM Verif
-  { method: "GET", path: "/api/tools/am-verif-send", title: "AM Verif - Send Link", desc: "Kirim link verifikasi", category: "AM Verif", icon: ShieldCheck, params: [{ name: "number", placeholder: "Nomor HP", required: true }] },
-  { method: "GET", path: "/api/tools/am-verif-check", title: "AM Verif - Check", desc: "Cek status verifikasi", category: "AM Verif", icon: Scan, params: [{ name: "number", placeholder: "Nomor HP", required: true }, { name: "code", placeholder: "Kode verifikasi", required: true }] },
+  { method: "GET", path: "/api/tools/am-verif-send", title: "AM Verif - Send Link", desc: "Kirim magic link ke email", category: "AM Verif", icon: ShieldCheck, params: [{ name: "email", placeholder: "Email Alight Motion", required: true }] },
+  { method: "GET", path: "/api/tools/am-verif-check", title: "AM Verif - Verify", desc: "Verifikasi & aktifkan premium", category: "AM Verif", icon: Scan, params: [{ name: "email", placeholder: "Email Alight Motion", required: true }, { name: "token", placeholder: "Token/Firebase dari magic link", required: true }] },
 ];
 
 const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
