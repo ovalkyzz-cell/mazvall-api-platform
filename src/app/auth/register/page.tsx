@@ -28,7 +28,7 @@ export default function RegisterPage() {
     const result = await register(email, password, name);
     setLoading(false);
     if (result.success) {
-      router.push("/dashboard");
+      router.push("/pending");
     } else {
       setError(result.error || "Registration failed");
     }

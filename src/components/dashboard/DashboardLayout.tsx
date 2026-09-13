@@ -17,6 +17,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const userItems = [
     { href: "/dashboard", label: "Ringkasan", icon: BarChart3 },
     { href: "/dashboard#keys", label: "Kunci API", icon: Key },
+    { href: "/dashboard/tools", label: "API Tools", icon: Wrench },
     { href: "/dashboard/plan", label: "Paket Saya", icon: CreditCard },
     { href: "/support", label: "Dukungan", icon: HelpCircle },
   ];

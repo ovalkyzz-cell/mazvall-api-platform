@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { generateApiKeyString } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -19,31 +18,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Email already registered' }, { status: 409 });
     }
 
-    const freePlan = await prisma.plan.findFirst({ where: { name: 'Gratis', active: true } });
-
     const hashed = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
-      data: {
-        email,
-        name,
-        password: hashed,
-        role: 'user',
-        tier: 'free',
-        status: 'active',
-        planId: freePlan?.id || null,
-      },
+      data: { email, name, password: hashed, role: 'user', tier: 'free', status: 'pending' },
     });
-
-    if (freePlan) {
-      await prisma.apiKey.create({
-        data: {
-          key: generateApiKeyString(),
-          name: 'Default API Key',
-          userId: user.id,
-          rateLimit: 5,
-        },
-      });
-    }
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
@@ -53,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
-      data: { user: { id: user.id, email: user.email, name: user.name, role: user.role, tier: user.tier, status: user.status, planId: user.planId }, token },
+      data: { user: { id: user.id, email: user.email, name: user.name, role: user.role, tier: user.tier, status: user.status }, token },
     });
 
     response.cookies.set('mazvall_token', token, {
