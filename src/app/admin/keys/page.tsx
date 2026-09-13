@@ -28,7 +28,7 @@ export default function AdminKeysPage() {
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== "admin")) router.push("/dashboard");
+    if (!authLoading && (!user || user.role !== "admin")) router.push("/auth/login");
   }, [user, authLoading, router]);
 
   useEffect(() => {

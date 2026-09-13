@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
-import { User, Key, HelpCircle, Sun, Moon, LogOut, Shield, BarChart3, Settings, FileText } from "lucide-react";
+import { User, Key, HelpCircle, Sun, Moon, LogOut, Shield, BarChart3, Settings, FileText, CreditCard } from "lucide-react";
 import clsx from "clsx";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -13,9 +13,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
   const pathname = usePathname();
 
-  const navItems = [
+  const userItems = [
     { href: "/dashboard", label: "Ringkasan", icon: BarChart3 },
     { href: "/dashboard#keys", label: "Kunci API", icon: Key },
+    { href: "/dashboard/plan", label: "Paket Saya", icon: CreditCard },
     { href: "/support", label: "Dukungan", icon: HelpCircle },
   ];
 
@@ -27,7 +28,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     { href: "/admin/settings", label: "Pengaturan", icon: Settings },
   ];
 
-  const items = user?.role === "admin" ? [...navItems.slice(0, 1), ...adminItems, ...navItems.slice(1)] : navItems;
+  const items = user?.role === "admin" ? adminItems : userItems;
 
   return (
     <div className="min-h-screen bg-surface-dark pt-16">
@@ -77,7 +78,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 {theme === "dark" ? "Mode Terang" : "Mode Gelap"}
               </button>
               <button
-                onClick={logout}
+                onClick={() => { logout(); window.location.href = "/"; }}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-red-400 hover:bg-red-500/5 w-full transition-all"
               >
                 <LogOut size={16} />

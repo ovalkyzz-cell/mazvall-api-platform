@@ -37,7 +37,7 @@ export default function AdminTicketsPage() {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== "admin")) router.push("/dashboard");
+    if (!authLoading && (!user || user.role !== "admin")) router.push("/auth/login");
   }, [user, authLoading, router]);
 
   useEffect(() => {

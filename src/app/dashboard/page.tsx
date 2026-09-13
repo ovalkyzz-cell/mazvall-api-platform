@@ -5,7 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { Key, Plus, Trash2, Power, PowerOff, Copy, BarChart3, Clock, Activity, TrendingUp, LogOut } from "lucide-react";
+import { Key, Plus, Trash2, Power, PowerOff, Copy, BarChart3, Clock, Activity, TrendingUp, LogOut, CreditCard, Calendar } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 interface ApiKeyItem {
@@ -36,7 +36,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/auth/login");
-  }, [user, authLoading, router]);
+    if (!authLoading && user?.status === "pending") router.push("/pending");
+    if (!authLoading && user?.status === "banned") { logout(); router.push("/auth/login?error=banned"); }
+    if (!authLoading && user?.status === "rejected") { logout(); router.push("/auth/login?error=rejected"); }
+    if (!authLoading && user?.status === "active" && !user.planId && user.role !== "admin") router.push("/dashboard/plan");
+  }, [user, authLoading, router, logout]);
 
   useEffect(() => {
     if (token) {
@@ -95,19 +99,32 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-bold mb-1">Dashboard</h1>
-            <p className="text-sm text-white/30">Selamat datang kembali, {user.name}. Berikut ringkasan API kamu.</p>
-          </div>
-          <button
-            onClick={() => { logout(); router.push("/"); }}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 text-sm transition-colors"
-          >
-            <LogOut size={16} />
-            Keluar
-          </button>
+        <div>
+          <h1 className="font-display text-2xl font-bold mb-1">Dashboard</h1>
+          <p className="text-sm text-white/30">Selamat datang kembali, {user.name}. Berikut ringkasan API kamu.</p>
         </div>
+
+        {/* Plan Info */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <CreditCard size={18} className="text-neon-cyan" />
+            <h3 className="font-display font-semibold">Paket Aktif</h3>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-extrabold font-display gradient-text">{user.tier || "Gratis"}</p>
+              {user.planId && (
+                <div className="flex items-center gap-2 mt-1 text-xs text-white/30">
+                  <Calendar size={12} />
+                  <span>Perpanjangan otomatis setiap 30 hari</span>
+                </div>
+              )}
+            </div>
+            <a href="/dashboard/plan" className="btn-ghost text-sm py-2 px-4">
+              {user.planId ? "Ganti Paket" : "Pilih Paket"}
+            </a>
+          </div>
+        </motion.div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

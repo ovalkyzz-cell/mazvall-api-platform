@@ -30,9 +30,6 @@ export async function POST(req: NextRequest) {
     if (user.status === 'rejected') {
       return NextResponse.json({ success: false, error: 'Akun anda telah ditolak. Hubungi admin untuk info lebih lanjut.' }, { status: 403 });
     }
-    if (user.status === 'pending') {
-      return NextResponse.json({ success: false, error: 'Akun anda masih menunggu persetujuan admin.' }, { status: 403 });
-    }
 
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
@@ -42,7 +39,10 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
-      data: { user: { id: user.id, email: user.email, name: user.name, role: user.role, tier: user.tier }, token },
+      data: {
+        user: { id: user.id, email: user.email, name: user.name, role: user.role, tier: user.tier, status: user.status, planId: user.planId },
+        token,
+      },
     });
 
     response.cookies.set('mazvall_token', token, {

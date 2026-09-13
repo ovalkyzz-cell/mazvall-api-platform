@@ -30,7 +30,10 @@ function PaymentContent() {
   const fetchStatus = useCallback(async () => {
     if (!transactionId) return;
     try {
-      const res = await fetch(`/api/payment/status?transactionId=${transactionId}`);
+      const savedToken = localStorage.getItem("mazvall_token");
+      const headers: Record<string, string> = {};
+      if (savedToken) headers["Authorization"] = `Bearer ${savedToken}`;
+      const res = await fetch(`/api/payment/status?transactionId=${transactionId}`, { headers });
       const data = await res.json();
       if (data.success) {
         setPayment(data.data);

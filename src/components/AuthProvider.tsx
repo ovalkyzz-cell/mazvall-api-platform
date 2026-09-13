@@ -8,6 +8,8 @@ interface User {
   name: string;
   role: string;
   tier: string;
+  status: string;
+  planId: string | null;
 }
 
 interface AuthContextType {

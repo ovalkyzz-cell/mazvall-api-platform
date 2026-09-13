@@ -109,15 +109,25 @@ export async function GET(req: NextRequest) {
         });
 
         if (!existingKey) {
-          const limits: Record<string, number> = { free: 10, developer: 60, enterprise: 300 };
-          const rateLimit = limits[plan.name] || 100;
+          const planRateLimits: Record<string, number> = { Gratis: 10, Starter: 10, Pro: 30, Business: 60, Enterprise: 100 };
+          const rateLimit = planRateLimits[plan.name] || 100;
 
-          await prisma.apiKey.create({
+          const newKey = await prisma.apiKey.create({
             data: {
               key: generateApiKeyString(),
               name: 'Default API Key',
               userId: decoded.userId,
               rateLimit,
+            },
+          });
+
+          return NextResponse.json({
+            success: true,
+            data: {
+              status: 'success',
+              qrUrl: data.data?.qr_url || transaction.qrUrl,
+              paymentUrl: data.data?.payment_url || transaction.paymentUrl,
+              apiKey: newKey.key,
             },
           });
         }

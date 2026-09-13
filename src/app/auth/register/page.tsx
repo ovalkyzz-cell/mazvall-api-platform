@@ -21,14 +21,14 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError("Password harus minimal 6 karakter");
       return;
     }
     setLoading(true);
     const result = await register(email, password, name);
     setLoading(false);
     if (result.success) {
-      router.push("/dashboard");
+      router.push("/pending");
     } else {
       setError(result.error || "Registration failed");
     }

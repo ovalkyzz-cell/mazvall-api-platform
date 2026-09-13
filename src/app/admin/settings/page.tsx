@@ -19,7 +19,7 @@ export default function AdminSettingsPage() {
   ]);
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== "admin")) router.push("/dashboard");
+    if (!authLoading && (!user || user.role !== "admin")) router.push("/auth/login");
   }, [user, authLoading, router]);
 
   useEffect(() => {
