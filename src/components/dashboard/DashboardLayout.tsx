@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
-import { User, Key, HelpCircle, Sun, Moon, LogOut, Shield, BarChart3, Settings, FileText, CreditCard, Menu, X } from "lucide-react";
+import { User, Key, HelpCircle, Sun, Moon, LogOut, Shield, BarChart3, Settings, FileText, CreditCard, Menu, X, Wrench } from "lucide-react";
 import clsx from "clsx";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -25,6 +25,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     { href: "/admin", label: "Ringkasan", icon: Shield },
     { href: "/admin/users", label: "Pengguna", icon: User },
     { href: "/admin/keys", label: "Kunci API", icon: Key },
+    { href: "/admin/tools", label: "API Tools", icon: Wrench },
     { href: "/admin/tickets", label: "Tiket", icon: FileText },
     { href: "/admin/settings", label: "Pengaturan", icon: Settings },
   ];
