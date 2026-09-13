@@ -13,9 +13,19 @@ function LoginContent() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      router.push("/admin");
+    } else if (user?.status === "pending") {
+      router.push("/pending");
+    } else if (user) {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
 
   useEffect(() => {
     const err = searchParams.get("error");
@@ -30,7 +40,7 @@ function LoginContent() {
     const result = await login(email, password);
     setLoading(false);
     if (result.success) {
-      router.push("/dashboard");
+      // Redirect handled by useEffect above based on role/status
     } else {
       setError(result.error || "Login failed");
     }

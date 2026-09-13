@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { generateApiKeyString } from '@/lib/db';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
 
 export interface ApiKeyUser {
   userId: string;
@@ -7,11 +11,38 @@ export interface ApiKeyUser {
   role: string;
   tier: string;
   planId?: string | null;
+  keyId: string;
 }
 
 export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUser; keyId: string } | null> {
   const apiKey = req.headers.get('x-api-key') || req.nextUrl.searchParams.get('apikey');
-  if (!apiKey) return null;
+
+  if (!apiKey) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string; role: string };
+        if (decoded.role === 'admin') {
+          let existingKey = await prisma.apiKey.findFirst({
+            where: { userId: decoded.userId, active: true },
+          });
+          if (!existingKey) {
+            existingKey = await prisma.apiKey.create({
+              data: {
+                key: generateApiKeyString(),
+                name: 'Admin Auto Key',
+                userId: decoded.userId,
+                rateLimit: 999999,
+              },
+            });
+          }
+          return { user: { userId: decoded.userId, email: decoded.email, role: 'admin', tier: 'admin', planId: null, keyId: existingKey.id }, keyId: existingKey.id };
+        }
+      } catch {}
+    }
+    return null;
+  }
 
   const key = await prisma.apiKey.findUnique({
     where: { key: apiKey },
@@ -21,10 +52,14 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
   if (!key || !key.active) return null;
   if (key.user.status !== 'active') return null;
 
-  return { user: { userId: key.user.id, email: key.user.email, role: key.user.role, tier: key.user.tier, planId: key.user.planId }, keyId: key.id };
+  return { user: { userId: key.user.id, email: key.user.email, role: key.user.role, tier: key.user.tier, planId: key.user.planId, keyId: key.id }, keyId: key.id };
 }
 
-export async function checkRateLimit(keyId: string, userId: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+export async function checkRateLimit(keyId: string, userId: string, userRole?: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+  if (userRole === 'admin') {
+    return { allowed: true, remaining: 999999, limit: 999999 };
+  }
+
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { planId: true } });
   let rpd = 5, rpm = 1, rph = 5;
 

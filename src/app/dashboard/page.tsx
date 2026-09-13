@@ -36,6 +36,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/auth/login");
+    if (!authLoading && user?.role === "admin") router.push("/admin");
     if (!authLoading && user?.status === "pending") router.push("/pending");
     if (!authLoading && user?.status === "banned") { logout(); router.push("/auth/login?error=banned"); }
     if (!authLoading && user?.status === "rejected") { logout(); router.push("/auth/login?error=rejected"); }

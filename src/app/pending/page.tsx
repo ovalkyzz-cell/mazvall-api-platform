@@ -14,6 +14,7 @@ export default function PendingPage() {
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/auth/login");
+    if (!authLoading && user?.role === "admin") router.push("/admin");
   }, [user, authLoading, router]);
 
   useEffect(() => {
@@ -25,7 +26,10 @@ export default function PendingPage() {
         const data = await res.json();
         if (data.success) {
           const u = data.data.user;
-          if (u.status === "active") {
+          if (u.role === "admin") {
+            clearInterval(interval);
+            router.push("/admin");
+          } else if (u.status === "active") {
             clearInterval(interval);
             if (u.planId) {
               router.push("/dashboard");
