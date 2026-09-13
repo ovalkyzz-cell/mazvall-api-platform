@@ -23,6 +23,7 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
       const token = authHeader.substring(7);
       try {
         const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string; role: string };
+
         if (decoded.role === 'admin') {
           let existingKey = await prisma.apiKey.findFirst({
             where: { userId: decoded.userId, active: true },
@@ -39,6 +40,24 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
           }
           return { user: { userId: decoded.userId, email: decoded.email, role: 'admin', tier: 'admin', planId: null, keyId: existingKey.id }, keyId: existingKey.id };
         }
+
+        const dbUser = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { id: true, email: true, role: true, tier: true, status: true, planId: true } });
+        if (!dbUser || dbUser.status !== 'active') return null;
+
+        let existingKey = await prisma.apiKey.findFirst({
+          where: { userId: decoded.userId, active: true },
+        });
+        if (!existingKey) {
+          existingKey = await prisma.apiKey.create({
+            data: {
+              key: generateApiKeyString(),
+              name: 'Default API Key',
+              userId: decoded.userId,
+              rateLimit: 100,
+            },
+          });
+        }
+        return { user: { userId: dbUser.id, email: dbUser.email, role: dbUser.role, tier: dbUser.tier, planId: dbUser.planId, keyId: existingKey.id }, keyId: existingKey.id };
       } catch {}
     }
     return null;
