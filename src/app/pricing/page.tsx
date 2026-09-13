@@ -17,6 +17,7 @@ interface Plan {
   requestsPerMin: number;
   description: string;
   features: string;
+  featureAccess: string;
   popular: boolean;
   active: boolean;
 }
@@ -100,7 +101,7 @@ export default function PricingPage() {
               Pilih <span className="gradient-text">Paket</span> yang Tepat
             </h1>
             <p className="text-lg text-white/40 max-w-2xl mx-auto">
-              Mulai gratis dan upgrade sesuai kebutuhan. Semua paket sudah termasuk akses ke seluruh endpoint API.
+              Mulai gratis dan upgrade sesuai kebutuhan. Paket Gratis terbatas pada AI & TempMail saja.
             </p>
           </motion.div>
 
@@ -148,6 +149,13 @@ export default function PricingPage() {
 
                     <p className="text-sm text-white/40 mb-4">{plan.description}</p>
 
+                    <div className="mb-4 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <p className="text-xs text-white/30 uppercase tracking-wider mb-1">Akses Fitur</p>
+                      <p className="text-sm font-medium text-white/70">
+                        {plan.featureAccess === "all" ? "Seluruh Endpoint" : plan.featureAccess.split(",").map(s => s.trim() === "ai" ? "AI" : s.trim() === "tempmail" ? "TempMail" : s.trim()).join(", ")}
+                      </p>
+                    </div>
+
                     <ul className="space-y-2.5 mb-6 flex-1">
                       {plan.features.split(",").map((f, fi) => (
                         <li key={fi} className="flex items-start gap-2 text-sm text-white/50">
@@ -188,7 +196,7 @@ export default function PricingPage() {
                 { q: "Apakah ada masa uji coba untuk paket berbayar?", a: "Tidak ada masa uji coba khusus, namun kamu bisa mulai dari paket Gratis dan upgrade kapan saja." },
                 { q: "Bagaimana cara mengganti paket?", a: "Kamu bisa upgrade atau downgrade paket kapan saja dari halaman Dashboard. Perubahan berlaku untuk siklus penagihan berikutnya." },
                 { q: "Metode pembayaran apa yang diterima?", a: "Kami menerima pembayaran melalui QRIS, transfer bank, dan e-wallet seperti GoPay, OVO, DANA, dan ShopeePay." },
-                { q: "Apakah paket Gratis memiliki batasan?", a: "Ya, paket Gratis terbatas pada 5 request/hari, 1 request/menit rate limit, dan 1 API key." },
+                { q: "Apakah paket Gratis memiliki batasan?", a: "Ya, paket Gratis terbatas pada akses AI (GPT, ChatGPT, Gemini, Grammar, Image) dan TempMail saja. Rate limit 5 request/hari. Upgrade ke paket berbayar untuk akses penuh ke seluruh endpoint." },
               ].map((faq) => (
                 <div key={faq.q} className="glass-card p-5">
                   <h3 className="font-display font-semibold text-sm mb-2">{faq.q}</h3>

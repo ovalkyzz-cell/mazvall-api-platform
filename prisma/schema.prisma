@@ -39,6 +39,7 @@ model Plan {
   requestsPerHour Int
   description     String
   features        String
+  featureAccess   String   @default("all")
   popular         Boolean  @default(false)
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())

@@ -214,15 +214,18 @@ export default function DocsPage() {
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
-                  <tr><th>Tier</th><th>Request/Menit</th><th>Request/Jam</th><th>Request/Hari</th></tr>
+                  <tr><th>Tier</th><th>Request/Menit</th><th>Request/Jam</th><th>Request/Hari</th><th>Akses Fitur</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td><span className="badge badge-free">Gratis</span></td><td className="text-sm">10</td><td className="text-sm">100</td><td className="text-sm">1.000</td></tr>
-                  <tr><td><span className="badge badge-developer">Developer</span></td><td className="text-sm">60</td><td className="text-sm">2.000</td><td className="text-sm">20.000</td></tr>
-                  <tr><td><span className="badge badge-enterprise">Enterprise</span></td><td className="text-sm">300</td><td className="text-sm">10.000</td><td className="text-sm">100.000</td></tr>
+                  <tr><td><span className="badge badge-free">Gratis</span></td><td className="text-sm">5</td><td className="text-sm">5</td><td className="text-sm">5</td><td className="text-sm">AI & TempMail saja</td></tr>
+                  <tr><td><span className="badge badge-developer">Starter</span></td><td className="text-sm">10</td><td className="text-sm">100</td><td className="text-sm">500</td><td className="text-sm">Seluruh Endpoint</td></tr>
+                  <tr><td><span className="badge badge-developer">Pro</span></td><td className="text-sm">30</td><td className="text-sm">500</td><td className="text-sm">2.000</td><td className="text-sm">Seluruh Endpoint</td></tr>
+                  <tr><td><span className="badge badge-developer">Business</span></td><td className="text-sm">60</td><td className="text-sm">1.000</td><td className="text-sm">5.000</td><td className="text-sm">Seluruh Endpoint</td></tr>
+                  <tr><td><span className="badge badge-enterprise">Enterprise</span></td><td className="text-sm">100</td><td className="text-sm">2.000</td><td className="text-sm">10.000</td><td className="text-sm">Seluruh Endpoint</td></tr>
                 </tbody>
               </table>
             </div>
+            <p className="text-xs text-white/30 mt-3">* Paket Gratis hanya dapat mengakses endpoint AI (GPT, ChatGPT, Gemini, Grammar, Image) dan TempMail.</p>
           </motion.div>
 
           {/* Endpoint Sections */}
