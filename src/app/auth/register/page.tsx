@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight } from "lucide-react";
+import CaptchaWidget from "@/components/ui/CaptchaWidget";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -14,12 +15,17 @@ export default function RegisterPage() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const { register } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!captchaVerified) {
+      setError("Please verify that you are not a robot");
+      return;
+    }
     if (password.length < 6) {
       setError("Password harus minimal 6 karakter");
       return;
@@ -116,6 +122,8 @@ export default function RegisterPage() {
                 </button>
               </div>
             </div>
+
+            <CaptchaWidget onVerify={() => setCaptchaVerified(true)} />
 
             <button
               type="submit"

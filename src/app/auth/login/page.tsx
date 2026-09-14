@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import CaptchaWidget from "@/components/ui/CaptchaWidget";
 
 function LoginContent() {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ function LoginContent() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const { login, user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,6 +38,10 @@ function LoginContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!captchaVerified) {
+      setError("Please verify that you are not a robot");
+      return;
+    }
     setLoading(true);
     const result = await login(email, password);
     setLoading(false);
@@ -112,6 +118,8 @@ function LoginContent() {
                 </button>
               </div>
             </div>
+
+            <CaptchaWidget onVerify={() => setCaptchaVerified(true)} />
 
             <button
               type="submit"
