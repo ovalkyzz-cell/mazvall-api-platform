@@ -244,3 +244,50 @@ export async function countTodayLogsByKey(apiKeyId: string) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return prisma.usageLog.count({ where: { apiKeyId, createdAt: { gte: today } } });
 }
+
+// ========== SYSTEM CONFIG ==========
+export async function getSystemConfig(key: string): Promise<string | null> {
+  const config = await prisma.systemConfig.findUnique({ where: { key } });
+  return config?.value || null;
+}
+
+export async function setSystemConfig(key: string, value: string) {
+  return prisma.systemConfig.upsert({
+    where: { key },
+    update: { value },
+    create: { key, value },
+  });
+}
+
+export async function getSecuritySettings() {
+  const defaults = {
+    botProtection: 'true',
+    rateLimiting: 'true',
+    ddosProtection: 'true',
+    ipBlocklist: '',
+    allowlist: '',
+    maxRequestsPerSecond: '10',
+  };
+
+  const keys = Object.keys(defaults);
+  const configs = await prisma.systemConfig.findMany({
+    where: { key: { in: keys } },
+  });
+
+  const result: Record<string, string> = { ...defaults };
+  for (const c of configs) {
+    result[c.key] = c.value;
+  }
+  return result;
+}
+
+export async function updateSecuritySettings(settings: Record<string, string>) {
+  const operations = Object.entries(settings).map(([key, value]) =>
+    prisma.systemConfig.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    })
+  );
+  await prisma.$transaction(operations);
+}
