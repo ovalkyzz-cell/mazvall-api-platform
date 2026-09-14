@@ -74,13 +74,13 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
   return { user: { userId: key.user.id, email: key.user.email, role: key.user.role, tier: key.user.tier, planId: key.user.planId, keyId: key.id }, keyId: key.id };
 }
 
-export async function checkRateLimit(keyId: string, userId: string, userRole?: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+export async function checkRateLimit(keyId: string, userId: string, userRole?: string, userTier?: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
   if (userRole === 'admin') {
     return { allowed: true, remaining: 999999, limit: 999999 };
   }
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { planId: true } });
-  let rpd = 5, rpm = 1, rph = 5;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { planId: true, tier: true } });
+  let rpd = 1000, rpm = 10, rph = 100;
 
   if (user?.planId) {
     const plan = await prisma.plan.findUnique({ where: { id: user.planId } });
@@ -89,6 +89,18 @@ export async function checkRateLimit(keyId: string, userId: string, userRole?: s
       rpm = plan.requestsPerMin;
       rph = plan.requestsPerHour;
     }
+  } else {
+    const tier = userTier || user?.tier || 'free';
+    const tierLimits: Record<string, { rpd: number; rpm: number; rph: number }> = {
+      free: { rpd: 1000, rpm: 10, rph: 100 },
+      developer: { rpd: 20000, rpm: 60, rph: 2000 },
+      enterprise: { rpd: 100000, rpm: 300, rph: 10000 },
+      admin: { rpd: 999999, rpm: 999999, rph: 999999 },
+    };
+    const limits = tierLimits[tier] || tierLimits.free;
+    rpd = limits.rpd;
+    rpm = limits.rpm;
+    rph = limits.rph;
   }
 
   const now = new Date();

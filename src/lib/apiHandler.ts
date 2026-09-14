@@ -19,7 +19,13 @@ export function createApiHandler(servicePath: string) {
           const plan = await prisma.plan.findUnique({ where: { id: auth.user.planId }, select: { featureAccess: true } });
           if (plan) featureAccess = plan.featureAccess;
         } else {
-          featureAccess = 'ai,tempmail';
+          const tier = auth.user.tier || 'free';
+          const tierFeatureAccess: Record<string, string> = {
+            free: 'ai,tempmail',
+            developer: 'all',
+            enterprise: 'all',
+          };
+          featureAccess = tierFeatureAccess[tier] || 'ai,tempmail';
         }
 
         if (!hasAccess(featureAccess, servicePath)) {
@@ -31,7 +37,7 @@ export function createApiHandler(servicePath: string) {
         }
       }
 
-      const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role);
+      const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role, auth.user.tier);
       if (!rateCheck.allowed) {
         return NextResponse.json({
           success: false,
