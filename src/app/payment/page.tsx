@@ -11,6 +11,9 @@ interface PaymentStatus {
   status: "pending" | "success" | "expired";
   qrUrl?: string;
   amount?: number;
+  originalAmount?: number;
+  discountPercentage?: number;
+  discountCode?: string;
   planName?: string;
   apiKey?: string;
   expiresAt?: string;
@@ -140,6 +143,16 @@ function PaymentContent() {
                   <p className="text-3xl font-extrabold font-display gradient-text">
                     Rp {(payment.amount ?? 0).toLocaleString("id-ID")}
                   </p>
+                  {payment.originalAmount && payment.originalAmount > (payment.amount ?? 0) && (
+                    <div className="mt-2 flex items-center justify-center gap-2">
+                      <span className="text-sm text-white/30 line-through">
+                        Rp {payment.originalAmount.toLocaleString("id-ID")}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-neon-lime/10 text-neon-lime font-medium">
+                        Diskon {payment.discountPercentage}%
+                      </span>
+                    </div>
+                  )}
                   <p className="text-xs text-white/30 mt-1">{payment.planName}</p>
                 </div>
 

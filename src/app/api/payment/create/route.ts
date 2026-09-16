@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { validateDiscount, applyDiscount } from '@/lib/discount';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { planId } = body;
+    const { planId, discountCode } = body;
 
     if (!planId) {
       return NextResponse.json({ success: false, error: 'planId is required' }, { status: 400 });
@@ -42,6 +43,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Plan not found or inactive' }, { status: 404 });
     }
 
+    let finalAmount = plan.price;
+    let discountId: string | null = null;
+
+    if (discountCode) {
+      const discountResult = await validateDiscount(discountCode);
+      if (!discountResult.valid) {
+        return NextResponse.json(
+          { success: false, error: discountResult.message },
+          { status: 400 }
+        );
+      }
+      discountId = discountResult.discount!.id;
+      finalAmount = Math.round(plan.price - (plan.price * discountResult.discount!.percentage) / 100);
+    }
+
     const QRIS_ACCOUNT_ID = process.env.QRIS_ACCOUNT_ID || '';
     const QRIS_SECRET_TOKEN = process.env.QRIS_SECRET_TOKEN || '';
     const QRIS_BASE_URL = process.env.QRIS_BASE_URL || 'https://api.buatqris.site';
@@ -50,8 +66,8 @@ export async function POST(req: NextRequest) {
     formData.append('action', 'api_create_qris');
     formData.append('account_id', QRIS_ACCOUNT_ID);
     formData.append('secret_token', QRIS_SECRET_TOKEN);
-    formData.append('amount', plan.price.toString());
-    formData.append('description', `Pembayaran ${plan.name}`);
+    formData.append('amount', finalAmount.toString());
+    formData.append('description', `Pembayaran ${plan.name}${discountCode ? ` (Diskon ${discountCode})` : ''}`);
 
     const response = await fetch(QRIS_BASE_URL, {
       method: 'POST',
@@ -75,13 +91,18 @@ export async function POST(req: NextRequest) {
       data: {
         userId: decoded.userId,
         planId: plan.id,
-        amount: plan.price,
+        amount: finalAmount,
         transactionId: data.data?.transaction_id || null,
         qrUrl: data.data?.qr_url || null,
         paymentUrl: data.data?.payment_url || null,
         status: 'pending',
+        discountId: discountId,
       },
     });
+
+    if (discountId) {
+      await applyDiscount(discountId);
+    }
 
     return NextResponse.json({
       success: true,
@@ -90,6 +111,8 @@ export async function POST(req: NextRequest) {
         qrUrl: transaction.qrUrl,
         paymentUrl: transaction.paymentUrl,
         amount: transaction.amount,
+        originalAmount: plan.price,
+        discountPercentage: discountId ? (await prisma.discount.findUnique({ where: { id: discountId } }))?.percentage : null,
         status: transaction.status,
       },
     });
