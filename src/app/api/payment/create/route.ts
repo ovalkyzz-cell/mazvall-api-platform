@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { validateCoupon, calculateDiscount } from '@/lib/coupon';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { planId } = body;
+    const { planId, couponCode } = body;
 
     if (!planId) {
       return NextResponse.json({ success: false, error: 'planId is required' }, { status: 400 });
@@ -42,6 +43,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Plan not found or inactive' }, { status: 404 });
     }
 
+    let finalPrice = plan.price;
+    let discountAmount = 0;
+    let appliedCoupon = null;
+
+    if (couponCode) {
+      const couponResult = await validateCoupon(couponCode, planId);
+      if (!couponResult.valid) {
+        return NextResponse.json(
+          { success: false, error: couponResult.error },
+          { status: 400 }
+        );
+      }
+
+      const discount = calculateDiscount(
+        plan.price,
+        couponResult.coupon!.discountType,
+        couponResult.coupon!.discountValue
+      );
+      finalPrice = discount.finalPrice;
+      discountAmount = discount.discountAmount;
+      appliedCoupon = couponResult.coupon;
+    } else if (plan.discountCode && plan.discountValue) {
+      const discount = calculateDiscount(
+        plan.price,
+        plan.discountType || 'percentage',
+        plan.discountValue
+      );
+      finalPrice = discount.finalPrice;
+      discountAmount = discount.discountAmount;
+    }
+
     const QRIS_ACCOUNT_ID = process.env.QRIS_ACCOUNT_ID || '';
     const QRIS_SECRET_TOKEN = process.env.QRIS_SECRET_TOKEN || '';
     const QRIS_BASE_URL = process.env.QRIS_BASE_URL || 'https://api.buatqris.site';
@@ -50,8 +82,8 @@ export async function POST(req: NextRequest) {
     formData.append('action', 'api_create_qris');
     formData.append('account_id', QRIS_ACCOUNT_ID);
     formData.append('secret_token', QRIS_SECRET_TOKEN);
-    formData.append('amount', plan.price.toString());
-    formData.append('description', `Pembayaran ${plan.name}`);
+    formData.append('amount', finalPrice.toString());
+    formData.append('description', `Pembayaran ${plan.name}${discountAmount > 0 ? ` (Diskon Rp ${discountAmount.toLocaleString('id-ID')})` : ''}`);
 
     const response = await fetch(QRIS_BASE_URL, {
       method: 'POST',
@@ -75,13 +107,27 @@ export async function POST(req: NextRequest) {
       data: {
         userId: decoded.userId,
         planId: plan.id,
-        amount: plan.price,
+        amount: finalPrice,
         transactionId: data.data?.transaction_id || null,
         qrUrl: data.data?.qr_url || null,
         paymentUrl: data.data?.payment_url || null,
         status: 'pending',
       },
     });
+
+    if (appliedCoupon) {
+      if (appliedCoupon.id !== plan.id) {
+        await prisma.coupon.update({
+          where: { id: appliedCoupon.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      } else {
+        await prisma.plan.update({
+          where: { id: plan.id },
+          data: { discountUsedCount: { increment: 1 } },
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -90,6 +136,9 @@ export async function POST(req: NextRequest) {
         qrUrl: transaction.qrUrl,
         paymentUrl: transaction.paymentUrl,
         amount: transaction.amount,
+        originalPrice: plan.price,
+        discountAmount,
+        finalPrice,
         status: transaction.status,
       },
     });

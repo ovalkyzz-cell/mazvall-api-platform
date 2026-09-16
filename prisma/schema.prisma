@@ -30,19 +30,26 @@ model User {
 }
 
 model Plan {
-  id              String   @id @default(cuid())
-  name            String   @unique
-  slug            String   @unique
+  id              String    @id @default(cuid())
+  name            String    @unique
+  slug            String    @unique
   price           Int
   requestsPerDay  Int
   requestsPerMin  Int
   requestsPerHour Int
   description     String
   features        String
-  featureAccess   String   @default("all")
-  popular         Boolean  @default(false)
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  featureAccess   String    @default("all")
+  popular         Boolean   @default(false)
+  active          Boolean   @default(true)
+  discountCode    String?
+  discountType    String?   @default("percentage")
+  discountValue   Int?
+  discountMaxUses Int?
+  discountUsedCount Int     @default(0)
+  discountExpiresAt DateTime?
+  createdAt       DateTime  @default(now())
+  coupons         Coupon[]
 }
 
 model Transaction {
@@ -126,4 +133,19 @@ model SystemConfig {
   id    String @id @default(cuid())
   key   String @unique
   value String
+}
+
+model Coupon {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  planId        String
+  plan          Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  discountType  String   @default("percentage")
+  discountValue Int
+  maxUses       Int      @default(1)
+  usedCount     Int      @default(0)
+  active        Boolean  @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
