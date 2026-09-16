@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       percentage: body.percentage,
       maxUses: body.maxUses,
       validUntil: body.validUntil ? new Date(body.validUntil) : undefined,
-      createdBy: admin.id,
+      createdBy: admin.userId,
     });
 
     return NextResponse.json({ success: true, data: discount }, { status: 201 });
