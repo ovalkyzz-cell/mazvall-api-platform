@@ -45,6 +45,20 @@ export async function GET(req: NextRequest) {
 
     const transaction = await prisma.transaction.findFirst({
       where: { transactionId, userId: decoded.userId },
+      include: {
+        discount: {
+          select: {
+            code: true,
+            percentage: true,
+          },
+        },
+        plan: {
+          select: {
+            name: true,
+            price: true,
+          },
+        },
+      },
     });
 
     if (!transaction) {
@@ -90,8 +104,7 @@ export async function GET(req: NextRequest) {
         data: { status: 'success', paidAt: new Date() },
       });
 
-      const plan = await prisma.plan.findUnique({ where: { id: transaction.planId } });
-      if (plan) {
+      if (transaction.plan) {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + 30);
 
@@ -100,7 +113,7 @@ export async function GET(req: NextRequest) {
           data: {
             planId: transaction.planId,
             planExpiry: expiryDate,
-            tier: plan.name,
+            tier: transaction.plan.name,
           },
         });
 
@@ -110,7 +123,7 @@ export async function GET(req: NextRequest) {
 
         if (!existingKey) {
           const planRateLimits: Record<string, number> = { Gratis: 10, Starter: 10, Pro: 30, Business: 60, Enterprise: 100 };
-          const rateLimit = planRateLimits[plan.name] || 100;
+          const rateLimit = planRateLimits[transaction.plan.name] || 100;
 
           const newKey = await prisma.apiKey.create({
             data: {
@@ -128,7 +141,10 @@ export async function GET(req: NextRequest) {
               qrUrl: data.data?.qr_url || transaction.qrUrl,
               paymentUrl: data.data?.payment_url || transaction.paymentUrl,
               amount: transaction.amount,
-              planName: plan.name,
+              originalAmount: transaction.discount ? transaction.plan.price : null,
+              discountPercentage: transaction.discount?.percentage || null,
+              discountCode: transaction.discount?.code || null,
+              planName: transaction.plan.name,
               apiKey: newKey.key,
             },
           });
@@ -143,7 +159,10 @@ export async function GET(req: NextRequest) {
         qrUrl: data.data?.qr_url || transaction.qrUrl,
         paymentUrl: data.data?.payment_url || transaction.paymentUrl,
         amount: transaction.amount,
-        planName: (await prisma.plan.findUnique({ where: { id: transaction.planId } }))?.name || null,
+        originalAmount: transaction.discount ? transaction.plan?.price : null,
+        discountPercentage: transaction.discount?.percentage || null,
+        discountCode: transaction.discount?.code || null,
+        planName: transaction.plan?.name || null,
       },
     });
   } catch (error) {

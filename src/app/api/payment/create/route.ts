@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { planId, couponCode } = body;
+    const { planId, couponCode, discountCode } = body;
 
     if (!planId) {
       return NextResponse.json({ success: false, error: 'planId is required' }, { status: 400 });
@@ -46,24 +46,36 @@ export async function POST(req: NextRequest) {
     let finalPrice = plan.price;
     let discountAmount = 0;
     let appliedCoupon = null;
+    let discountId: string | null = null;
+    const code = couponCode || discountCode;
 
-    if (couponCode) {
-      const couponResult = await validateCoupon(couponCode, planId);
-      if (!couponResult.valid) {
-        return NextResponse.json(
-          { success: false, error: couponResult.error },
-          { status: 400 }
+    if (code) {
+      const couponResult = await validateCoupon(code, planId);
+      if (couponResult.valid) {
+        const discount = calculateDiscount(
+          plan.price,
+          couponResult.coupon!.discountType,
+          couponResult.coupon!.discountValue
         );
+        finalPrice = discount.finalPrice;
+        discountAmount = discount.discountAmount;
+        appliedCoupon = couponResult.coupon;
+      } else {
+        const discount = await prisma.discount.findUnique({ where: { code } });
+        if (discount && discount.active) {
+          if (discount.validUntil && new Date() > discount.validUntil) {
+            return NextResponse.json({ success: false, error: 'Diskon sudah kadaluarsa' }, { status: 400 });
+          }
+          if (discount.usedCount >= discount.maxUses) {
+            return NextResponse.json({ success: false, error: 'Diskon sudah mencapai batas penggunaan' }, { status: 400 });
+          }
+          discountId = discount.id;
+          discountAmount = Math.round((plan.price * discount.percentage) / 100);
+          finalPrice = plan.price - discountAmount;
+        } else {
+          return NextResponse.json({ success: false, error: 'Kode diskon tidak valid' }, { status: 400 });
+        }
       }
-
-      const discount = calculateDiscount(
-        plan.price,
-        couponResult.coupon!.discountType,
-        couponResult.coupon!.discountValue
-      );
-      finalPrice = discount.finalPrice;
-      discountAmount = discount.discountAmount;
-      appliedCoupon = couponResult.coupon;
     } else if (plan.discountCode && plan.discountValue) {
       const discount = calculateDiscount(
         plan.price,
@@ -112,6 +124,7 @@ export async function POST(req: NextRequest) {
         qrUrl: data.data?.qr_url || null,
         paymentUrl: data.data?.payment_url || null,
         status: 'pending',
+        discountId: discountId,
       },
     });
 
@@ -127,6 +140,13 @@ export async function POST(req: NextRequest) {
           data: { discountUsedCount: { increment: 1 } },
         });
       }
+    }
+
+    if (discountId) {
+      await prisma.discount.update({
+        where: { id: discountId },
+        data: { usedCount: { increment: 1 } },
+      });
     }
 
     return NextResponse.json({
