@@ -51,6 +51,7 @@ model Plan {
   discountExpiresAt DateTime?
   createdAt       DateTime  @default(now())
   coupons         Coupon[]
+  transactions    Transaction[]
 }
 
 model Transaction {
@@ -58,6 +59,7 @@ model Transaction {
   userId          String
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   planId          String
+  plan            Plan       @relation(fields: [planId], references: [id])
   amount          Int
   transactionId   String?
   qrUrl           String?
