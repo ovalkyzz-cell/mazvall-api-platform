@@ -5,6 +5,12 @@ import { prisma } from '@/lib/prisma';
 
 const BASE_URL = 'https://api-faa.my.id/faa';
 
+const FREE_AI_ENDPOINTS = [
+  '/api/ai/chatgpt',
+  '/api/ai/gemini',
+  '/api/ai/deepseekr1',
+];
+
 export function createApiHandler(servicePath: string) {
   return async function handler(req: NextRequest) {
     try {
@@ -35,6 +41,18 @@ export function createApiHandler(servicePath: string) {
             error: 'Paket kamu tidak memiliki akses ke endpoint ini. Upgrade ke paket berbayar untuk akses penuh.',
             endpoint: servicePath,
           }, { status: 403 });
+        }
+
+        const tier = auth.user.tier || 'free';
+        if ((tier === 'free' || tier === 'Gratis') && !auth.user.planId) {
+          if (servicePath.startsWith('/api/ai/') && !FREE_AI_ENDPOINTS.includes(servicePath)) {
+            return NextResponse.json({
+              success: false,
+              error: 'Free tier hanya bisa akses: chatgpt, gemini, deepseekr1. Upgrade ke paket berbayar untuk akses semua AI.',
+              endpoint: servicePath,
+              available_for_free: FREE_AI_ENDPOINTS,
+            }, { status: 403 });
+          }
         }
       }
 
