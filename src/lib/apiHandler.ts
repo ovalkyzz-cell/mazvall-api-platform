@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 const BASE_URL = 'https://api-faa.my.id/faa';
 
 const FREE_AI_ENDPOINTS = [
-  '/api/ai/chatgpt',
+  '/api/ai/gptoss120b',
   '/api/ai/gemini',
   '/api/ai/deepseekr1',
 ];
