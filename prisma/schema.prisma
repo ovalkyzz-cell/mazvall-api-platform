@@ -143,8 +143,8 @@ model SystemConfig {
 model Coupon {
   id            String   @id @default(cuid())
   code          String   @unique
-  planId        String
-  plan          Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId        String?
+  plan          Plan?    @relation(fields: [planId], references: [id], onDelete: SetNull)
   discountType  String   @default("percentage")
   discountValue Int
   maxUses       Int      @default(1)

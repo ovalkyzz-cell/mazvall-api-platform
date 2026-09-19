@@ -36,13 +36,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { planId, discountType, discountValue, maxUses, expiresAt } = body;
 
-    if (!planId || !discountType || !discountValue) {
-      return successResponse(null, "planId, discountType, dan discountValue wajib diisi");
+    if (!discountType || !discountValue) {
+      return successResponse(null, "discountType dan discountValue wajib diisi");
     }
 
-    const plan = await prisma.plan.findUnique({ where: { id: planId } });
-    if (!plan) {
-      return successResponse(null, "Plan tidak ditemukan");
+    if (planId && planId !== "all") {
+      const plan = await prisma.plan.findUnique({ where: { id: planId } });
+      if (!plan) {
+        return successResponse(null, "Plan tidak ditemukan");
+      }
     }
 
     const code = await generateUniqueCouponCode();
@@ -50,13 +52,13 @@ export async function POST(req: NextRequest) {
     const coupon = await prisma.coupon.create({
       data: {
         code,
-        planId,
+        planId: planId && planId !== "all" ? planId : null,
         discountType,
         discountValue: parseInt(discountValue),
         maxUses: maxUses ? parseInt(maxUses) : 1,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
       },
-      include: { plan: { select: { name: true } } },
+      include: { plan: { select: { name: true, slug: true, price: true } } },
     });
 
     return successResponse(coupon, "Coupon berhasil dibuat");

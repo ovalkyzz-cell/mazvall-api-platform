@@ -7,7 +7,8 @@ globalForPrisma.prisma = prisma;
 
 export const getTierLimits = (tier: string) => {
   const limits: Record<string, { rpm: number; rph: number; rpd: number }> = {
-    free: { rpm: 10, rph: 100, rpd: 1000 },
+    free: { rpm: 30, rph: 200, rpd: 1000 },
+    Gratis: { rpm: 30, rph: 200, rpd: 1000 },
     developer: { rpm: 60, rph: 2000, rpd: 20000 },
     enterprise: { rpm: 300, rph: 10000, rpd: 100000 },
   };

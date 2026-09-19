@@ -3,7 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { generateApiKeyString } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('CRITICAL: JWT_SECRET is not set');
+}
 
 export interface ApiKeyUser {
   userId: string;
@@ -19,10 +22,10 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
 
   if (!apiKey) {
     const authHeader = req.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
+    if (authHeader?.startsWith('Bearer ') && JWT_SECRET) {
       const token = authHeader.substring(7);
       try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string; role: string };
+        const decoded = jwt.verify(token, JWT_SECRET) as unknown as { userId: string; email: string; role: string };
 
         if (decoded.role === 'admin') {
           let existingKey = await prisma.apiKey.findFirst({
@@ -63,6 +66,10 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
     return null;
   }
 
+  if (!apiKey.startsWith('MVAL-') || apiKey.length < 10 || apiKey.length > 50) {
+    return null;
+  }
+
   const key = await prisma.apiKey.findUnique({
     where: { key: apiKey },
     include: { user: { select: { id: true, email: true, role: true, tier: true, status: true, planId: true } } },
@@ -92,7 +99,8 @@ export async function checkRateLimit(keyId: string, userId: string, userRole?: s
   } else {
     const tier = userTier || user?.tier || 'free';
     const tierLimits: Record<string, { rpd: number; rpm: number; rph: number }> = {
-      free: { rpd: 1000, rpm: 10, rph: 100 },
+      free: { rpd: 1000, rpm: 30, rph: 200 },
+      Gratis: { rpd: 1000, rpm: 30, rph: 200 },
       developer: { rpd: 20000, rpm: 60, rph: 2000 },
       enterprise: { rpd: 100000, rpm: 300, rph: 10000 },
       admin: { rpd: 999999, rpm: 999999, rph: 999999 },

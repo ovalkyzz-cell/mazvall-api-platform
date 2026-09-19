@@ -35,7 +35,7 @@ export async function validateCoupon(code: string, planId: string) {
       return { valid: false, error: "Kode diskon sudah tidak aktif" };
     }
 
-    if (coupon.planId !== planId) {
+    if (coupon.planId && coupon.planId !== planId) {
       return { valid: false, error: "Kode diskon tidak berlaku untuk paket ini" };
     }
 

@@ -129,12 +129,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (appliedCoupon) {
-      if (appliedCoupon.id !== plan.id) {
+      if (appliedCoupon.id && appliedCoupon.id !== plan.id) {
         await prisma.coupon.update({
           where: { id: appliedCoupon.id },
           data: { usedCount: { increment: 1 } },
         });
-      } else {
+      } else if (appliedCoupon.planId === null || appliedCoupon.planId === plan.id) {
         await prisma.plan.update({
           where: { id: plan.id },
           data: { discountUsedCount: { increment: 1 } },

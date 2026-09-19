@@ -29,19 +29,23 @@ interface Endpoint {
 
 const endpoints: Endpoint[] = [
   // AI
-  { method: "GET", path: "/api/ai/gpt", title: "GPT", desc: "Akses model GPT", category: "AI", icon: Bot, params: [{ name: "text", placeholder: "Teks input", required: true }, { name: "model", placeholder: "Model (opsional)" }] },
-  { method: "GET", path: "/api/ai/chatgpt", title: "ChatGPT", desc: "Akses ChatGPT", category: "AI", icon: MessageSquare, params: [{ name: "query", placeholder: "Pertanyaan", required: true }, { name: "model", placeholder: "Model (opsional)" }] },
-  { method: "GET", path: "/api/ai/gemini", title: "Gemini", desc: "Akses Google Gemini", category: "AI", icon: Sparkles, params: [{ name: "text", placeholder: "Teks input", required: true }] },
-  { method: "GET", path: "/api/ai/claude-opus", title: "Claude Opus", desc: "Akses Claude Opus", category: "AI", icon: Bot, params: [{ name: "text", placeholder: "Teks input", required: true }] },
-  { method: "GET", path: "/api/ai/copilot", title: "Copilot", desc: "Akses Microsoft Copilot", category: "AI", icon: Bot, params: [{ name: "text", placeholder: "Teks input", required: true }] },
-  { method: "GET", path: "/api/ai/felo", title: "Felo", desc: "Akses Felo AI", category: "AI", icon: Search, params: [{ name: "text", placeholder: "Teks input", required: true }] },
-  { method: "GET", path: "/api/ai/apertus", title: "Apertus", desc: "Akses Apertus AI", category: "AI", icon: Bot, params: [{ name: "text", placeholder: "Teks input", required: true }] },
-  { method: "GET", path: "/api/ai/grammar", title: "Grammar Check", desc: "Cek grammar teks", category: "AI", icon: FileText, params: [{ name: "text", placeholder: "Teks untuk dicek", required: true }] },
-  { method: "GET", path: "/api/ai/image", title: "Image Gen", desc: "Buat gambar dari teks", category: "AI", icon: Image, params: [{ name: "text", placeholder: "Deskripsi gambar", required: true }] },
-  { method: "GET", path: "/api/ai/anime-art", title: "Anime Art", desc: "Buat gambar anime", category: "AI", icon: Image, params: [{ name: "text", placeholder: "Deskripsi gambar", required: true }] },
-  { method: "GET", path: "/api/ai/anime-to-real", title: "Anime to Real", desc: "Ubah anime ke realistis", category: "AI", icon: Image, params: [{ name: "url", placeholder: "URL gambar", required: true }] },
-  { method: "GET", path: "/api/ai/anime-result", title: "Anime Result", desc: "Hasil anime", category: "AI", icon: Image, params: [{ name: "url", placeholder: "URL gambar", required: true }] },
-  { method: "GET", path: "/api/ai/chibi-sticker", title: "Chibi Sticker", desc: "Buat chibi sticker", category: "AI", icon: Image, params: [{ name: "url", placeholder: "URL gambar", required: true }] },
+  { method: "GET", path: "/api/ai/gpt", title: "GPT (GPT-OSS-120B)", desc: "Akses model GPT-OSS-120B", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }, { name: "system", placeholder: "System prompt (opsional)" }, { name: "temperature", placeholder: "Temperature (opsional)" }] },
+  { method: "GET", path: "/api/ai/chatgpt", title: "ChatGPT (GPT-OSS-120B)", desc: "Akses ChatGPT via GPT-OSS-120B", category: "AI", icon: MessageSquare, params: [{ name: "prompt", placeholder: "Pertanyaan", required: true }, { name: "system", placeholder: "System prompt (opsional)" }, { name: "temperature", placeholder: "Temperature (opsional)" }] },
+  { method: "GET", path: "/api/ai/gemini", title: "Gemini", desc: "Akses Google Gemini", category: "AI", icon: Sparkles, params: [{ name: "text", placeholder: "Teks input", required: true }, { name: "cookie", placeholder: "Cookie Gemini", required: true }, { name: "promptSystem", placeholder: "System prompt (opsional)" }] },
+  { method: "GET", path: "/api/ai/deepseekr1", title: "DeepSeek R1", desc: "Akses DeepSeek R1", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }, { name: "system", placeholder: "System prompt (opsional)" }, { name: "temperature", placeholder: "Temperature (opsional)" }] },
+  { method: "GET", path: "/api/ai/phi2", title: "Phi-2", desc: "Akses Phi-2 AI", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }, { name: "system", placeholder: "System prompt (opsional)" }, { name: "temperature", placeholder: "Temperature (opsional)" }] },
+  { method: "GET", path: "/api/ai/qwq32b", title: "QWQ-32B", desc: "Akses QWQ-32B AI", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }, { name: "system", placeholder: "System prompt (opsional)" }, { name: "temperature", placeholder: "Temperature (opsional)" }] },
+  { method: "GET", path: "/api/ai/glm47flash", title: "GLM-47-Flash", desc: "Akses GLM-47-Flash AI", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }, { name: "system", placeholder: "System prompt (opsional)" }, { name: "temperature", placeholder: "Temperature (opsional)" }] },
+  { method: "GET", path: "/api/ai/gita", title: "Gita (Bhagavad Gita)", desc: "Tanya jawab Bhagavad Gita", category: "AI", icon: Sparkles, params: [{ name: "q", placeholder: "Pertanyaan", required: true }] },
+  { method: "GET", path: "/api/ai/bibleai", title: "Bible AI", desc: "Tanya jawab Alkitab", category: "AI", icon: Sparkles, params: [{ name: "question", placeholder: "Pertanyaan", required: true }, { name: "translation", placeholder: "ESV, NKJV, dll" }] },
+  { method: "GET", path: "/api/mimo/models", title: "Mimo Models", desc: "List 45+ model AI (MiMo, DeepSeek, GPT, Gemini)", category: "AI", icon: Bot, params: [] },
+  { method: "POST", path: "/api/mimo/chat", title: "Mimo Chat", desc: "Chat dengan AI via Mimo API", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Pesan", required: true }, { name: "model", placeholder: "xiaomi/mimo-v2.5-pro" }, { name: "messages", placeholder: "Riwayat chat (JSON)" }] },
+  { method: "GET", path: "/api/ai/grammar", title: "Grammar Check (GLM-47-Flash)", desc: "Cek grammar via GLM-47-Flash", category: "AI", icon: FileText, params: [{ name: "prompt", placeholder: "Teks untuk dicek", required: true }] },
+  { method: "GET", path: "/api/ai/claude-opus", title: "Claude Opus (DeepSeek R1)", desc: "Akses Claude via DeepSeek R1", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }] },
+  { method: "GET", path: "/api/ai/copilot", title: "Copilot (GPT-OSS)", desc: "Akses Copilot via GPT-OSS", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }] },
+  { method: "GET", path: "/api/ai/felo", title: "Felo (GPT-OSS)", desc: "Akses Felo AI via GPT-OSS", category: "AI", icon: Search, params: [{ name: "prompt", placeholder: "Teks input", required: true }] },
+  { method: "GET", path: "/api/ai/apertus", title: "Apertus (Phi-2)", desc: "Akses Apertus via Phi-2", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }] },
+  { method: "GET", path: "/api/ai/gptoss120b", title: "GPT-OSS-120B (Direct)", desc: "Akses langsung GPT-OSS-120B", category: "AI", icon: Bot, params: [{ name: "prompt", placeholder: "Teks input", required: true }, { name: "system", placeholder: "System prompt (opsional)" }, { name: "temperature", placeholder: "Temperature (opsional)" }] },
 
   // Downloader
   { method: "GET", path: "/api/download/youtube", title: "YouTube", desc: "Download video YouTube", category: "Downloader", icon: Video, params: [{ name: "url", placeholder: "URL YouTube", required: true }] },
@@ -70,10 +74,46 @@ const endpoints: Endpoint[] = [
   { method: "GET", path: "/api/tools/domain-recon", title: "Domain Recon", desc: "Reconnaissance domain", category: "Tools", icon: Globe, params: [{ name: "domain", placeholder: "example.com", required: true }] },
   { method: "GET", path: "/api/tools/cek-nomor", title: "Cek Nomor", desc: "Cek info nomor HP", category: "Tools", icon: Hash, params: [{ name: "number", placeholder: "08xxx", required: true }] },
   { method: "GET", path: "/api/tools/nftoken-generate", title: "NfToken Generate", desc: "Generate token Netflix Premium", category: "Tools", icon: Sparkles, params: [{ name: "count", placeholder: "Jumlah token (1-10)" }] },
+  { method: "GET", path: "/api/tools/kodepos", title: "Kodepos", desc: "Cek kode pos Indonesia", category: "Tools", icon: Hash, params: [{ name: "form", placeholder: "Nama wilayah", required: true }] },
+  { method: "GET", path: "/api/tools/translate", title: "Translate", desc: "Terjemahkan teks", category: "Tools", icon: FileText, params: [{ name: "text", placeholder: "Teks", required: true }, { name: "source", placeholder: "en" }, { name: "target", placeholder: "id" }] },
+  { method: "GET", path: "/api/tools/countryInfo", title: "Country Info", desc: "Info negara", category: "Tools", icon: Globe, params: [{ name: "name", placeholder: "Indonesia", required: true }] },
+  { method: "GET", path: "/api/tools/subdomains", title: "Subdomains", desc: "Cari subdomain", category: "Tools", icon: Search, params: [{ name: "domain", placeholder: "example.com", required: true }] },
+
+  // Sticker
+  { method: "GET", path: "/api/sticker/combot-search", title: "Combot Sticker", desc: "Cari sticker Telegram", category: "Sticker", icon: Image, params: [{ name: "q", placeholder: "Kata kunci", required: true }, { name: "page", placeholder: "Halaman" }] },
+
+  // Stalker
+  { method: "GET", path: "/api/stalk/github", title: "GitHub Stalk", desc: "Stalk akun GitHub", category: "Stalker", icon: Search, params: [{ name: "user", placeholder: "Username", required: true }] },
+  { method: "GET", path: "/api/stalk/twitter", title: "Twitter Stalk", desc: "Stalk akun Twitter", category: "Stalker", icon: Search, params: [{ name: "user", placeholder: "Username", required: true }] },
+  { method: "GET", path: "/api/stalk/threads", title: "Threads Stalk", desc: "Cari di Threads", category: "Stalker", icon: Search, params: [{ name: "q", placeholder: "Query", required: true }] },
+  { method: "GET", path: "/api/stalk/youtube", title: "YouTube Stalk", desc: "Stalk channel YouTube", category: "Stalker", icon: Search, params: [{ name: "username", placeholder: "Username", required: true }] },
+  { method: "GET", path: "/api/stalk/pinterest", title: "Pinterest Stalk", desc: "Cari di Pinterest", category: "Stalker", icon: Search, params: [{ name: "q", placeholder: "Query", required: true }] },
+
+  // Search
+  { method: "GET", path: "/api/s/applemusic", title: "Apple Music", desc: "Cari lagu Apple Music", category: "Search", icon: Music, params: [{ name: "query", placeholder: "Judul lagu", required: true }, { name: "region", placeholder: "id" }] },
+  { method: "GET", path: "/api/s/gitagram", title: "Gitagram", desc: "Cari lirik lagu", category: "Search", icon: Music, params: [{ name: "search", placeholder: "Judul lagu", required: true }] },
+  { method: "GET", path: "/api/s/lahelu", title: "Lahelu", desc: "Cari di Lahelu", category: "Search", icon: Search, params: [{ name: "query", placeholder: "Query", required: true }] },
+  { method: "GET", path: "/api/s/duckduckgo", title: "DuckDuckGo", desc: "Cari di DuckDuckGo", category: "Search", icon: Search, params: [{ name: "query", placeholder: "Query", required: true }, { name: "kl", placeholder: "us-en" }, { name: "df", placeholder: "w" }] },
+  { method: "GET", path: "/api/s/bimg", title: "BImg", desc: "Cari gambar", category: "Search", icon: Image, params: [{ name: "query", placeholder: "Kata kunci", required: true }] },
+  { method: "GET", path: "/api/s/brave", title: "Brave Search", desc: "Cari di Brave", category: "Search", icon: Search, params: [{ name: "query", placeholder: "Query", required: true }] },
+  { method: "GET", path: "/api/s/myinstants", title: "MyInstants", desc: "Cari suara MyInstants", category: "Search", icon: Music, params: [{ name: "query", placeholder: "Kata kunci", required: true }] },
+  { method: "GET", path: "/api/s/8font", title: "8Font", desc: "Cari font", category: "Search", icon: FileText, params: [{ name: "query", placeholder: "Kata kunci", required: true }, { name: "page", placeholder: "Halaman" }] },
+  { method: "GET", path: "/api/s/otakotaku", title: "OtakOtaku", desc: "Cari anime di OtakOtaku", category: "Search", icon: Search, params: [{ name: "query", placeholder: "Judul anime", required: true }] },
+  { method: "GET", path: "/api/s/mcpedl", title: "MCPEDL", desc: "Cari mod Minecraft", category: "Search", icon: Search, params: [{ name: "q", placeholder: "Kata kunci", required: true }] },
+  { method: "GET", path: "/api/s/mangatoon", title: "Mangatoon", desc: "Cari manga di Mangatoon", category: "Search", icon: Search, params: [{ name: "query", placeholder: "Judul manga", required: true }] },
+  { method: "GET", path: "/api/s/youtube", title: "YouTube Search", desc: "Cari video YouTube", category: "Search", icon: Video, params: [{ name: "query", placeholder: "Kata kunci", required: true }] },
+  { method: "GET", path: "/api/s/pinterest", title: "Pinterest Search", desc: "Cari gambar Pinterest", category: "Search", icon: Image, params: [{ name: "query", placeholder: "Kata kunci", required: true }, { name: "type", placeholder: "image" }] },
+
+  // Random
+  { method: "GET", path: "/api/r/quotesanime", title: "Quotes Anime", desc: "Random quotes anime", category: "Random", icon: Sparkles, params: [] },
+  { method: "GET", path: "/api/r/lahelu", title: "Lahelu Random", desc: "Random post Lahelu", category: "Random", icon: Sparkles, params: [] },
 
   // TempMail
   { method: "GET", path: "/api/tempmail/create", title: "Create Email", desc: "Buat email temporary", category: "TempMail", icon: Mail, params: [] },
   { method: "GET", path: "/api/tempmail/inbox", title: "Inbox", desc: "Cek inbox email", category: "TempMail", icon: Mail, params: [{ name: "email", placeholder: "Email temporary", required: true }] },
+  { method: "GET", path: "/api/tempmail/generate", title: "Generate Email", desc: "Generate email random baru", category: "TempMail", icon: Mail, params: [{ name: "username", placeholder: "Username (opsional)" }, { name: "domain", placeholder: "Domain (opsional)" }] },
+  { method: "GET", path: "/api/tempmail/domains", title: "Domains", desc: "List domain tersedia", category: "TempMail", icon: Globe, params: [] },
+  { method: "GET", path: "/api/tempmail/message", title: "Read Message", desc: "Baca isi email", category: "TempMail", icon: Mail, params: [{ name: "email", placeholder: "Email", required: true }, { name: "link", placeholder: "Link pesan", required: true }] },
 
   // AM Verif
   { method: "GET", path: "/api/tools/am-verif-send", title: "AM Verif - Send Link", desc: "Kirim magic link ke email", category: "AM Verif", icon: ShieldCheck, params: [{ name: "email", placeholder: "Email Alight Motion", required: true }] },
@@ -85,6 +125,10 @@ const categoryColors: Record<string, { bg: string; text: string; border: string 
   Downloader: { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20" },
   Info: { bg: "bg-cyan-500/10", text: "text-cyan-400", border: "border-cyan-500/20" },
   Tools: { bg: "bg-lime-500/10", text: "text-lime-400", border: "border-lime-500/20" },
+  Sticker: { bg: "bg-pink-500/10", text: "text-pink-400", border: "border-pink-500/20" },
+  Stalker: { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/20" },
+  Search: { bg: "bg-indigo-500/10", text: "text-indigo-400", border: "border-indigo-500/20" },
+  Random: { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20" },
   TempMail: { bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/20" },
   "AM Verif": { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/20" },
 };

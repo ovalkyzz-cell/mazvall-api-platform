@@ -1,12 +1,10 @@
 import { NextRequest } from "next/server";
-import { requireAuth, authResponse, successResponse } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { successResponse } from "@/lib/auth";
 import { validateCoupon, calculateDiscount } from "@/lib/coupon";
 
 export async function POST(req: NextRequest) {
   try {
-    const user = requireAuth(req);
-    if (!user) return authResponse("Unauthorized");
-
     const body = await req.json();
     const { code, planId } = body;
 
@@ -19,8 +17,13 @@ export async function POST(req: NextRequest) {
       return successResponse({ valid: false, error: result.error });
     }
 
+    const plan = await prisma.plan.findUnique({ where: { id: planId } });
+    if (!plan) {
+      return successResponse({ valid: false, error: "Plan tidak ditemukan" });
+    }
+
     const { finalPrice, discountAmount } = calculateDiscount(
-      result.coupon!.plan.price,
+      plan.price,
       result.coupon!.discountType,
       result.coupon!.discountValue
     );
@@ -30,12 +33,11 @@ export async function POST(req: NextRequest) {
       code: result.coupon!.code,
       discountType: result.coupon!.discountType,
       discountValue: result.coupon!.discountValue,
-      originalPrice: result.coupon!.plan.price,
+      originalPrice: plan.price,
       discountAmount,
       finalPrice,
     });
   } catch (error: any) {
-    if (error.message === "Unauthorized") return authResponse("Unauthorized");
     return successResponse(null, "Gagal memvalidasi coupon");
   }
 }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   CheckCircle,
   Zap,
@@ -35,13 +35,6 @@ interface Plan {
   active: boolean;
 }
 
-interface DiscountResult {
-  id: string;
-  code: string;
-  percentage: number;
-  description: string | null;
-}
-
 const planIcon = (name: string) => {
   switch (name.toLowerCase()) {
     case "gratis": return Star;
@@ -59,20 +52,90 @@ export default function PricingPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [loadingCoupon, setLoadingCoupon] = useState<string | null>(null);
 
-  const [showDiscountModal, setShowDiscountModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [discountCode, setDiscountCode] = useState("");
-  const [appliedDiscount, setAppliedDiscount] = useState<DiscountResult | null>(null);
-  const [validatingDiscount, setValidatingDiscount] = useState(false);
-  const [discountError, setDiscountError] = useState("");
+  const [discountCodes, setDiscountCodes] = useState<Record<string, string>>({});
+  const [appliedCoupons, setAppliedCoupons] = useState<Record<string, any>>({});
+  const [couponErrors, setCouponErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch("/api/plans")
       .then((r) => r.json())
-      .then((d) => { if (d.success) setPlans(d.data); })
+      .then((d) => {
+        console.log("PLANS DATA:", d);
+        if (d.success) setPlans(d.data);
+      })
+      .catch((e) => console.error("PLANS ERROR:", e))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleApplyCoupon = async (plan: Plan) => {
+    const code = discountCodes[plan.id] || "";
+    if (!code.trim()) {
+      setCouponErrors({ ...couponErrors, [plan.id]: "Masukkan kode diskon" });
+      return;
+    }
+
+    setLoadingCoupon(plan.id);
+    setCouponErrors({ ...couponErrors, [plan.id]: "" });
+
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim(), planId: plan.id }),
+      });
+      const data = await res.json();
+
+      if (data.success && data.data?.valid) {
+        setAppliedCoupons({
+          ...appliedCoupons,
+          [plan.id]: {
+            code: data.data.code,
+            discountType: data.data.discountType,
+            discountValue: data.data.discountValue,
+          },
+        });
+        setCouponErrors({ ...couponErrors, [plan.id]: "" });
+        toast.success("Diskon berhasil diterapkan!");
+      } else {
+        setCouponErrors({
+          ...couponErrors,
+          [plan.id]: data.data?.error || data.error || "Kode diskon tidak valid",
+        });
+        const newApplied = { ...appliedCoupons };
+        delete newApplied[plan.id];
+        setAppliedCoupons(newApplied);
+      }
+    } catch {
+      setCouponErrors({
+        ...couponErrors,
+        [plan.id]: "Gagal memvalidasi kode diskon",
+      });
+    } finally {
+      setLoadingCoupon(null);
+    }
+  };
+
+  const handleRemoveCoupon = (planId: string) => {
+    const newApplied = { ...appliedCoupons };
+    delete newApplied[planId];
+    setAppliedCoupons(newApplied);
+    setDiscountCodes({ ...discountCodes, [planId]: "" });
+    setCouponErrors({ ...couponErrors, [planId]: "" });
+  };
+
+  const calculateDiscountAmount = (price: number, coupon: any) => {
+    if (!coupon) return 0;
+    if (coupon.discountType === "percentage") {
+      return Math.floor((price * coupon.discountValue) / 100);
+    }
+    return coupon.discountValue;
+  };
+
+  const calculateFinalPrice = (price: number, coupon: any) => {
+    return Math.max(0, price - calculateDiscountAmount(price, coupon));
+  };
 
   const handleSelect = async (plan: Plan) => {
     if (!user) {
@@ -90,53 +153,14 @@ export default function PricingPage() {
       processPayment(plan.id, null);
       return;
     }
-    setSelectedPlan(plan);
-    setDiscountCode("");
-    setAppliedDiscount(null);
-    setDiscountError("");
-    setShowDiscountModal(true);
+    processPayment(plan.id, appliedCoupons[plan.id]?.code || null);
   };
 
-  const handleValidateDiscount = async () => {
-    if (!discountCode.trim()) {
-      setDiscountError("Masukkan kode diskon");
-      return;
-    }
-    setValidatingDiscount(true);
-    setDiscountError("");
-    try {
-      const res = await fetch("/api/discount", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: discountCode.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setAppliedDiscount(data.data);
-        toast.success(`Diskon ${data.data.percentage}% berhasil diterapkan!`);
-      } else {
-        setDiscountError(data.error || "Kode diskon tidak valid");
-        setAppliedDiscount(null);
-      }
-    } catch {
-      setDiscountError("Gagal memvalidasi kode diskon");
-      setAppliedDiscount(null);
-    } finally {
-      setValidatingDiscount(false);
-    }
-  };
-
-  const handleRemoveDiscount = () => {
-    setAppliedDiscount(null);
-    setDiscountCode("");
-    setDiscountError("");
-  };
-
-  const processPayment = async (planId: string, discountCodeStr: string | null) => {
+  const processPayment = async (planId: string, couponCodeStr: string | null) => {
     setLoadingPlan(planId);
     try {
-      const body: { planId: string; discountCode?: string } = { planId };
-      if (discountCodeStr) body.discountCode = discountCodeStr;
+      const body: { planId: string; couponCode?: string } = { planId };
+      if (couponCodeStr) body.couponCode = couponCodeStr;
 
       const res = await fetch("/api/payment/create", {
         method: "POST",
@@ -151,32 +175,20 @@ export default function PricingPage() {
         router.push(`/payment?transactionId=${data.data.transactionId}`);
       }
     } catch {
-      // fallback silently
+      // silent
     } finally {
       setLoadingPlan(null);
-      setShowDiscountModal(false);
     }
-  };
-
-  const handleConfirmPurchase = () => {
-    if (!selectedPlan) return;
-    processPayment(selectedPlan.id, appliedDiscount?.code || null);
-  };
-
-  const getDiscountedPrice = (plan: Plan, discount: DiscountResult | null) => {
-    if (!discount) return plan.price;
-    return Math.round(plan.price - (plan.price * discount.percentage) / 100);
   };
 
   return (
     <div className="min-h-screen">
       <Navbar />
 
-      <section className="relative min-h-screen pt-24 pb-20 overflow-hidden">
+      <section className="relative min-h-screen pt-24 pb-20">
         <div className="absolute inset-0 z-0">
           <div className="absolute top-20 left-10 w-96 h-96 bg-neon-cyan/5 rounded-full filter blur-[100px] morph-blob" />
           <div className="absolute bottom-20 right-10 w-80 h-80 bg-neon-magenta/5 rounded-full filter blur-[100px] morph-blob" style={{ animationDelay: "-5s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-neon-lime/3 rounded-full filter blur-[80px] morph-blob" style={{ animationDelay: "-10s" }} />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -189,18 +201,23 @@ export default function PricingPage() {
               Pilih <span className="gradient-text">Paket</span> yang Tepat
             </h1>
             <p className="text-lg text-white/40 max-w-2xl mx-auto">
-              Mulai gratis dan upgrade sesuai kebutuhan. Gunakan kode diskon untuk mendapatkan harga spesial.
+              Mulai gratis dan upgrade sesuai kebutuhan.
             </p>
           </motion.div>
 
           {loading ? (
             <div className="text-center py-20">
               <div className="w-8 h-8 border-2 border-neon-cyan border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-white/40 mt-4 text-sm">Memuat paket...</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {plans.filter(p => p.active).map((plan, i) => {
                 const Icon = planIcon(plan.name);
+                const hasCoupon = !!appliedCoupons[plan.id];
+                const finalPrice = calculateFinalPrice(plan.price, appliedCoupons[plan.id]);
+                const discountAmount = calculateDiscountAmount(plan.price, appliedCoupons[plan.id]);
+
                 return (
                   <motion.div
                     key={plan.id}
@@ -229,18 +246,26 @@ export default function PricingPage() {
                     </div>
 
                     <div className="mb-4">
-                      <span className="text-3xl font-extrabold font-display">
-                        {plan.price === 0 ? "Gratis" : `Rp ${plan.price.toLocaleString("id-ID")}`}
-                      </span>
-                      {plan.price > 0 && <span className="text-xs text-white/30 ml-1">/ bulan</span>}
+                      {hasCoupon && plan.price > 0 ? (
+                        <>
+                          <span className="text-sm text-white/40 line-through block">Rp {plan.price.toLocaleString("id-ID")}</span>
+                          <span className="text-3xl font-extrabold font-display text-neon-cyan">
+                            Rp {finalPrice.toLocaleString("id-ID")}
+                          </span>
+                          <span className="text-xs text-white/30 ml-1">/ bulan</span>
+                          <div className="text-sm text-neon-lime font-semibold mt-1">
+                            Hemat Rp {discountAmount.toLocaleString("id-ID")}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-3xl font-extrabold font-display">
+                            {plan.price === 0 ? "Gratis" : `Rp ${plan.price.toLocaleString("id-ID")}`}
+                          </span>
+                          {plan.price > 0 && <span className="text-xs text-white/30 ml-1">/ bulan</span>}
+                        </>
+                      )}
                     </div>
-
-                    {plan.price > 0 && (
-                      <div className="flex items-center gap-1.5 mb-4 text-xs text-neon-lime/70">
-                        <Tag size={12} />
-                        <span>Masukkan kode diskon saat checkout</span>
-                      </div>
-                    )}
 
                     <p className="text-sm text-white/40 mb-4">{plan.description}</p>
 
@@ -251,7 +276,7 @@ export default function PricingPage() {
                       </p>
                     </div>
 
-                    <ul className="space-y-2.5 mb-6 flex-1">
+                    <ul className="space-y-2.5 mb-4 flex-1">
                       {plan.features.split(",").map((f, fi) => (
                         <li key={fi} className="flex items-start gap-2 text-sm text-white/50">
                           <CheckCircle size={14} className="text-neon-cyan shrink-0 mt-0.5" />
@@ -259,6 +284,75 @@ export default function PricingPage() {
                         </li>
                       ))}
                     </ul>
+
+                    {plan.price > 0 && (
+                      <div className="mb-4 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+                        <div className="px-4 py-2.5 border-b border-white/10 bg-white/[0.02] flex items-center gap-2">
+                          <Tag size={13} className="text-neon-cyan" />
+                          <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">Gunakan Kode Diskon</span>
+                        </div>
+                        <div className="p-4">
+                          {!hasCoupon ? (
+                            <>
+                              <div className="flex items-stretch gap-2">
+                                <input
+                                  type="text"
+                                  value={discountCodes[plan.id] || ""}
+                                  onChange={(e) => setDiscountCodes({ ...discountCodes, [plan.id]: e.target.value.toUpperCase() })}
+                                  placeholder="Masukkan kode"
+                                  className="min-w-0 flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm font-mono text-white placeholder:text-white/25 focus:outline-none focus:border-neon-cyan/50 focus:ring-1 focus:ring-neon-cyan/30 transition-all"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleApplyCoupon(plan);
+                                  }}
+                                />
+                                <button
+                                  onClick={() => handleApplyCoupon(plan)}
+                                  disabled={loadingCoupon === plan.id || !(discountCodes[plan.id] || "").trim()}
+                                  className="shrink-0 px-4 py-2.5 rounded-lg bg-neon-cyan text-surface-dark text-xs font-bold hover:brightness-110 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap"
+                                >
+                                  {loadingCoupon === plan.id ? (
+                                    <Loader2 size={13} className="animate-spin" />
+                                  ) : (
+                                    <Check size={13} />
+                                  )}
+                                  Gunakan
+                                </button>
+                              </div>
+                              {couponErrors[plan.id] && (
+                                <div className="flex items-center gap-1.5 mt-2 text-xs text-red-400 bg-red-500/10 px-2.5 py-1.5 rounded-lg">
+                                  <AlertCircle size={12} />
+                                  <span className="truncate">{couponErrors[plan.id]}</span>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-neon-lime/10 border border-neon-lime/20">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="shrink-0 w-7 h-7 rounded-full bg-neon-lime/20 flex items-center justify-center">
+                                  <Check size={14} className="text-neon-lime" />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-sm font-mono font-bold text-neon-lime block truncate">
+                                    {appliedCoupons[plan.id].code}
+                                  </span>
+                                  <span className="text-xs text-white/40">
+                                    {appliedCoupons[plan.id].discountType === "percentage"
+                                      ? `-${appliedCoupons[plan.id].discountValue}%`
+                                      : `-Rp ${appliedCoupons[plan.id].discountValue.toLocaleString("id-ID")}`}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveCoupon(plan.id)}
+                                className="shrink-0 w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <button
                       onClick={() => handleSelect(plan)}
@@ -272,7 +366,7 @@ export default function PricingPage() {
                       ) : (
                         <>
                           <span className={plan.popular ? "shine" : ""} />
-                          {plan.price === 0 ? "Mulai Gratis" : "Pilih Paket"}
+                          {plan.price === 0 ? "Mulai Gratis" : "Bayar Sekarang"}
                           <ArrowRight size={14} />
                         </>
                       )}
@@ -283,15 +377,13 @@ export default function PricingPage() {
             </div>
           )}
 
-          {/* FAQ */}
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="mt-20 max-w-3xl mx-auto">
             <h2 className="font-display text-2xl font-bold text-center mb-10">Pertanyaan Umum</h2>
             <div className="space-y-4">
               {[
-                { q: "Apakah ada masa uji coba untuk paket berbayar?", a: "Tidak ada masa uji coba khusus, namun kamu bisa mulai dari paket Gratis dan upgrade kapan saja." },
-                { q: "Bagaimana cara mengganti paket?", a: "Kamu bisa upgrade atau downgrade paket kapan saja dari halaman Dashboard. Perubahan berlaku untuk siklus penagihan berikutnya." },
+                { q: "Bagaimana cara menggunakan kode diskon?", a: "Masukkan kode diskon di kolom 'KODE DISKON' pada paket yang dipilih, lalu klik 'Gunakan'. Harga akan otomatis terpotong sebelum pembayaran." },
                 { q: "Metode pembayaran apa yang diterima?", a: "Kami menerima pembayaran melalui QRIS, transfer bank, dan e-wallet seperti GoPay, OVO, DANA, dan ShopeePay." },
-                { q: "Bagaimana cara menggunakan kode diskon?", a: "Ketika kamu memilih paket berbayar, akan muncul kolom untuk memasukkan kode diskon. Masukkan kode yang valid dan diskon akan langsung diterapkan ke harga yang harus dibayar." },
+                { q: "Bagaimana cara mengganti paket?", a: "Kamu bisa upgrade atau downgrade paket kapan saja dari halaman Dashboard." },
               ].map((faq) => (
                 <div key={faq.q} className="glass-card p-5">
                   <h3 className="font-display font-semibold text-sm mb-2">{faq.q}</h3>
@@ -302,169 +394,6 @@ export default function PricingPage() {
           </motion.div>
         </div>
       </section>
-
-      {/* Discount Modal */}
-      <AnimatePresence>
-        {showDiscountModal && selectedPlan && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={() => setShowDiscountModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card w-full max-w-md overflow-hidden"
-            >
-              {/* Header */}
-              <div className="p-6 border-b border-white/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-cyan/20 to-neon-magenta/20 flex items-center justify-center">
-                      <Tag size={18} className="text-neon-cyan" />
-                    </div>
-                    <div>
-                      <h3 className="font-display font-bold text-lg">Checkout</h3>
-                      <p className="text-xs text-white/30">{selectedPlan.name}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowDiscountModal(false)}
-                    className="text-white/30 hover:text-white transition-colors"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Body */}
-              <div className="p-6 space-y-5">
-                {/* Price Summary */}
-                <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-white/50">Harga Paket</span>
-                    <span className="font-display font-bold">Rp {selectedPlan.price.toLocaleString("id-ID")}</span>
-                  </div>
-                  {appliedDiscount && (
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-neon-lime flex items-center gap-1.5">
-                        <Tag size={12} />
-                        Diskon {appliedDiscount.percentage}%
-                      </span>
-                      <span className="text-sm text-neon-lime font-bold">
-                        - Rp {((selectedPlan.price * appliedDiscount.percentage) / 100).toLocaleString("id-ID")}
-                      </span>
-                    </div>
-                  )}
-                  {appliedDiscount && (
-                    <div className="pt-2 mt-2 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-sm font-medium text-white/70">Total Bayar</span>
-                      <span className="text-xl font-extrabold font-display gradient-text">
-                        Rp {getDiscountedPrice(selectedPlan, appliedDiscount).toLocaleString("id-ID")}
-                      </span>
-                    </div>
-                  )}
-                  {!appliedDiscount && (
-                    <div className="pt-2 mt-2 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-sm font-medium text-white/70">Total Bayar</span>
-                      <span className="text-xl font-extrabold font-display">
-                        Rp {selectedPlan.price.toLocaleString("id-ID")}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Discount Code Input */}
-                {!appliedDiscount ? (
-                  <div>
-                    <label className="block text-sm text-white/50 mb-2">Kode Diskon (Opsional)</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={discountCode}
-                        onChange={(e) => {
-                          setDiscountCode(e.target.value.toUpperCase());
-                          setDiscountError("");
-                        }}
-                        placeholder="DISCON-MVAL-XXXXX"
-                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm font-mono uppercase tracking-wider focus:outline-none focus:border-neon-cyan/50 transition-colors placeholder:text-white/20"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleValidateDiscount();
-                        }}
-                      />
-                      <button
-                        onClick={handleValidateDiscount}
-                        disabled={validatingDiscount || !discountCode.trim()}
-                        className="px-4 py-2.5 rounded-lg bg-neon-cyan/10 text-neon-cyan text-sm font-medium hover:bg-neon-cyan/20 transition-colors disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {validatingDiscount ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <Check size={14} />
-                        )}
-                        Gunakan
-                      </button>
-                    </div>
-                    {discountError && (
-                      <div className="flex items-center gap-1.5 mt-2 text-xs text-red-400">
-                        <AlertCircle size={12} />
-                        {discountError}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-neon-lime/5 border border-neon-lime/20">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-neon-lime/10 flex items-center justify-center">
-                        <Check size={14} className="text-neon-lime" />
-                      </div>
-                      <div>
-                        <code className="text-sm font-mono font-bold text-neon-lime">{appliedDiscount.code}</code>
-                        <p className="text-xs text-white/30">Diskon {appliedDiscount.percentage}% diterapkan</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleRemoveDiscount}
-                      className="text-white/30 hover:text-red-400 transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="p-6 pt-0 flex gap-3">
-                <button
-                  onClick={() => setShowDiscountModal(false)}
-                  className="flex-1 py-3 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleConfirmPurchase}
-                  disabled={loadingPlan === selectedPlan.id}
-                  className="flex-1 py-3 rounded-xl text-sm font-medium btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {loadingPlan === selectedPlan.id ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <>
-                      <span className="shine" />
-                      Bayar Sekarang
-                      <ArrowRight size={14} />
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <Footer />
     </div>

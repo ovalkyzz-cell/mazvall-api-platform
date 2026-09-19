@@ -3,7 +3,7 @@ import { validateApiKey, checkRateLimit, logApiUsage, proxyToService } from '@/l
 import { hasAccess } from '@/lib/featureAccess';
 import { prisma } from '@/lib/prisma';
 
-const BASE_URL = 'https://www.keyrafara.com';
+const BASE_URL = 'https://api-faa.my.id/faa';
 
 export function createApiHandler(servicePath: string) {
   return async function handler(req: NextRequest) {
@@ -22,6 +22,7 @@ export function createApiHandler(servicePath: string) {
           const tier = auth.user.tier || 'free';
           const tierFeatureAccess: Record<string, string> = {
             free: 'ai,tempmail',
+            Gratis: 'ai,tempmail',
             developer: 'all',
             enterprise: 'all',
           };
@@ -57,11 +58,14 @@ export function createApiHandler(servicePath: string) {
       }
 
       if (body && typeof body === 'object') {
-        if ('author' in body) body.author = 'mazval';
-        if (body.result && typeof body.result === 'object') {
-          if ('author' in body.result) body.result.author = 'mazval';
+        const raw = JSON.stringify(body).replace(/keyra/gi, 'MazVal');
+        const sanitized = JSON.parse(raw);
+        if ('author' in sanitized) sanitized.author = 'mazval';
+        if (sanitized.result && typeof sanitized.result === 'object') {
+          if ('author' in sanitized.result) sanitized.result.author = 'mazval';
         }
-        body.endpoint = servicePath;
+        sanitized.endpoint = servicePath;
+        body = sanitized;
       }
 
       await logApiUsage(

@@ -103,14 +103,17 @@ export default function AdminCouponsPage() {
   }, [token]);
 
   const handleCreate = async () => {
-    if (!token || !form.planId || !form.discountValue) return;
+    if (!token || !form.discountValue) return;
     const res = await fetch("/api/admin/coupons", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        planId: form.planId || "all",
+      }),
     });
     const data = await res.json();
     if (data.success) {
@@ -121,14 +124,17 @@ export default function AdminCouponsPage() {
   };
 
   const handleBatchGenerate = async () => {
-    if (!token || !batchForm.planId || !batchForm.discountValue || !batchForm.count) return;
+    if (!token || !batchForm.discountValue || !batchForm.count) return;
     const res = await fetch("/api/admin/coupons/generate", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(batchForm),
+      body: JSON.stringify({
+        ...batchForm,
+        planId: batchForm.planId || "all",
+      }),
     });
     const data = await res.json();
     if (data.success) {
@@ -167,7 +173,7 @@ export default function AdminCouponsPage() {
   };
 
   const filtered = coupons.filter((c) => {
-    if (filterPlan !== "all" && c.planId !== filterPlan) return false;
+    if (filterPlan !== "all" && c.planId !== filterPlan && c.planId !== null) return false;
     if (search && !c.code.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -315,7 +321,7 @@ export default function AdminCouponsPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="badge">{coupon.plan.name}</span>
+                        <span className="badge">{coupon.plan?.name || "Semua Paket"}</span>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-1">
@@ -391,7 +397,7 @@ export default function AdminCouponsPage() {
                     onChange={(e) => setForm({ ...form, planId: e.target.value })}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-neon-cyan/50"
                   >
-                    <option value="">Pilih paket</option>
+                    <option value="all">Semua Paket</option>
                     {plans.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} - Rp {p.price.toLocaleString("id-ID")}
@@ -477,7 +483,7 @@ export default function AdminCouponsPage() {
                     onChange={(e) => setBatchForm({ ...batchForm, planId: e.target.value })}
                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-neon-cyan/50"
                   >
-                    <option value="">Pilih paket</option>
+                    <option value="all">Semua Paket</option>
                     {plans.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} - Rp {p.price.toLocaleString("id-ID")}

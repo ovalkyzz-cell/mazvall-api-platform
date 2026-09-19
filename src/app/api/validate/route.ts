@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { findApiKeyByKey, createUsageLog, findUserById, countTodayLogsByKey } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
 import { getTierLimits } from '@/lib/prisma';
+import { hasAccess } from '@/lib/featureAccess';
 
 export async function POST(req: NextRequest) {
   try {
-    const { apiKey, endpoint, method } = await req.json();
+    const { apiKey: bodyKey, apikey: queryKey, endpoint, method } = await req.json();
+    const apiKey = bodyKey || queryKey;
 
     if (!apiKey) {
       return NextResponse.json({ success: false, error: 'API key required' }, { status: 400 });
@@ -17,8 +19,35 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await findUserById(key.userId);
-    const tier = user?.tier || 'free';
+    if (!user || user.status !== 'active') {
+      return NextResponse.json({ success: false, error: 'User inactive or not found' }, { status: 401 });
+    }
+
+    const tier = user.tier || 'free';
     const limits = getTierLimits(tier);
+
+    if (user.role !== 'admin' && endpoint) {
+      let featureAccess = 'all';
+      if (user.planId) {
+        const plan = await prisma.plan.findUnique({ where: { id: user.planId }, select: { featureAccess: true } });
+        if (plan) featureAccess = plan.featureAccess;
+      } else {
+        const tierFeatureAccess: Record<string, string> = {
+          free: 'ai,tempmail',
+          developer: 'all',
+          enterprise: 'all',
+        };
+        featureAccess = tierFeatureAccess[tier] || 'ai,tempmail';
+      }
+
+      if (!hasAccess(featureAccess, endpoint)) {
+        return NextResponse.json({
+          success: false,
+          error: 'Paket kamu tidak memiliki akses ke endpoint ini',
+          data: { valid: false, tier, featureAccess },
+        }, { status: 403 });
+      }
+    }
 
     const todayCount = await countTodayLogsByKey(key.id);
     const remaining = Math.max(0, limits.rpd - todayCount);
