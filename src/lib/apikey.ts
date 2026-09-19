@@ -144,16 +144,31 @@ export async function proxyToService(serviceUrl: string, req: NextRequest): Prom
 
     const res = await fetch(targetUrl.toString(), {
       method: 'GET',
-      headers: { 'User-Agent': 'MazVall-API-Platform/1.0' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Referer': 'https://api-faa.my.id/',
+      },
       signal: AbortSignal.timeout(30000),
     });
 
     const contentType = res.headers.get('content-type') || '';
     const body = await res.text();
 
+    if (contentType.includes('text/html') || body.includes('Just a moment') || body.includes('cf_chl_opt') || body.includes('challenge-platform')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Upstream API sedang dalam maintenance atau terkena proteksi Cloudflare. Silakan coba lagi nanti.',
+        upstream_status: res.status,
+      }, { status: 502 });
+    }
+
     return new NextResponse(body, {
       status: res.status,
-      headers: { 'Content-Type': contentType, 'Access-Control-Allow-Origin': '*' },
+      headers: { 'Content-Type': contentType || 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message || 'Service unavailable' }, { status: 502 });

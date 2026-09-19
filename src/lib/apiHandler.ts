@@ -70,9 +70,13 @@ export function createApiHandler(servicePath: string) {
 
       let body: any;
       try {
-        body = await response.json();
+        const text = await response.clone().text();
+        if (!text || text.trim().length === 0) {
+          return NextResponse.json({ success: false, error: 'Upstream API tidak merespon. Server mungkin sedang maintenance.', endpoint: servicePath }, { status: 502 });
+        }
+        body = JSON.parse(text);
       } catch {
-        return response;
+        return NextResponse.json({ success: false, error: 'Upstream API mengembalikan response tidak valid. Silakan coba lagi.', endpoint: servicePath }, { status: 502 });
       }
 
       if (body && typeof body === 'object') {
