@@ -579,6 +579,10 @@ export default function DocsPage() {
                 <pre className="whitespace-pre-wrap"><span className="text-blue-400">fetch</span>(<span className="text-orange-300">&quot;{BASE}/api/ai/gpt?text=Halo&quot;</span>, {'{\n'}{'  '}headers: {'{'} <span className="text-orange-300">&quot;X-API-Key&quot;</span>: <span className="text-orange-300">&quot;MVAL-XXX&quot;</span> {'}'}{'\n'}{'}'}).<span className="text-blue-400">then</span>(r =&gt; r.<span className="text-blue-400">json</span>()).<span className="text-blue-400">then</span>(console.log);</pre>
               </div>
             </div>
+            <div className="mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <p className="text-xs text-yellow-400 font-medium mb-1">Admin Bypass:</p>
+              <p className="text-xs text-white/40">Akun <strong className="text-white/60">Admin</strong> melewati semua batasan: rate limit unlimited, akses seluruh endpoint tanpa pembatasan tier, dan tidak ada pembatasan AI.</p>
+            </div>
           </motion.div>
 
           {/* Rate Limits */}
@@ -592,13 +596,18 @@ export default function DocsPage() {
                   <tr><th>Tier</th><th>Request/Menit</th><th>Request/Jam</th><th>Request/Hari</th><th>Akses Fitur</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td><span className="badge badge-free">Free</span></td><td className="text-sm">10</td><td className="text-sm">100</td><td className="text-sm">1.000</td><td className="text-sm">AI & TempMail saja</td></tr>
+                  <tr><td><span className="badge badge-free">Free</span></td><td className="text-sm">30</td><td className="text-sm">200</td><td className="text-sm">1.000</td><td className="text-sm">AI (3 model) & TempMail</td></tr>
                   <tr><td><span className="badge badge-developer">Developer</span></td><td className="text-sm">60</td><td className="text-sm">2.000</td><td className="text-sm">20.000</td><td className="text-sm">Seluruh Endpoint</td></tr>
                   <tr><td><span className="badge badge-enterprise">Enterprise</span></td><td className="text-sm">300</td><td className="text-sm">10.000</td><td className="text-sm">100.000</td><td className="text-sm">Seluruh Endpoint</td></tr>
+                  <tr><td><span className="badge" style={{background:"rgba(255,215,0,0.15)",color:"#ffd700",border:"1px solid rgba(255,215,0,0.3)"}}>Admin</span></td><td className="text-sm">Unlimited</td><td className="text-sm">Unlimited</td><td className="text-sm">Unlimited</td><td className="text-sm">Full Akses - Tanpa Batasan</td></tr>
                 </tbody>
               </table>
             </div>
             <p className="text-xs text-white/30 mt-3">* Rate limit berdasarkan tier akun. Upgrade tier di dashboard untuk limit lebih tinggi.</p>
+            <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <p className="text-xs text-yellow-400 font-medium mb-1">Catatan Free Tier:</p>
+              <p className="text-xs text-white/40">Paket Gratis hanya bisa akses <strong className="text-white/60">3 model AI</strong>: ChatGPT (GPT-OSS-120B), Gemini, dan DeepSeek R1. Endpoint AI lainnya memerlukan paket berbayar. Admin memiliki akses penuh tanpa batasan.</p>
+            </div>
           </motion.div>
 
           {/* Endpoint Sections */}
