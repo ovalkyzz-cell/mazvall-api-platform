@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import AnimatedLogo from "@/components/ui/AnimatedLogo";
 import { motion } from "framer-motion";
 import { ArrowRight, Zap, Shield, Key, BarChart3, Code2, Globe, Clock, CheckCircle, ChevronRight } from "lucide-react";
 
@@ -47,6 +48,16 @@ export default function HomePage() {
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          {/* Animated Logo */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
+            className="mb-8"
+          >
+            <AnimatedLogo size="lg" showText={false} />
+          </motion.div>
+
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-sm mb-8">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />

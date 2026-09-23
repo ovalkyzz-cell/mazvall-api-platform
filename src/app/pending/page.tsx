@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Clock, Shield, Mail, LogOut, CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
+import AnimatedLogo from "@/components/ui/AnimatedLogo";
 
 export default function PendingPage() {
   const { user, token, logout, loading: authLoading } = useAuth();
@@ -60,6 +61,11 @@ export default function PendingPage() {
     <div className="min-h-screen bg-surface-dark pt-16">
       <section className="relative py-20 px-4">
         <div className="max-w-lg mx-auto text-center">
+          {/* Logo */}
+          <div className="flex justify-center mb-8">
+            <AnimatedLogo size="lg" showText={false} />
+          </div>
+
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}

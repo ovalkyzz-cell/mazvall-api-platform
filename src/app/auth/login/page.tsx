@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import CaptchaWidget from "@/components/ui/CaptchaWidget";
+import AnimatedLogo from "@/components/ui/AnimatedLogo";
 
 function LoginContent() {
   const [email, setEmail] = useState("");
@@ -65,11 +66,9 @@ function LoginContent() {
         className="relative z-10 w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-cyan to-neon-magenta flex items-center justify-center">
-              <span className="font-display font-bold text-surface-dark">M</span>
-            </div>
-          </Link>
+          <div className="flex justify-center mb-6">
+            <AnimatedLogo size="lg" showText={false} />
+          </div>
           <h1 className="font-display text-3xl font-bold mb-2">Selamat Datang Kembali</h1>
           <p className="text-white/40 text-sm">Masuk ke akun Api&apos;s Mazvall kamu</p>
         </div>

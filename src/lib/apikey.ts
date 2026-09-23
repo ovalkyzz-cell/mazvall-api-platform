@@ -150,15 +150,16 @@ export async function proxyToService(serviceUrl: string, req: NextRequest): Prom
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
-        'Referer': 'https://api-faa.my.id/',
+        'Referer': 'https://api-faa.my.id/faa/',
       },
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(60000),
     });
 
     const contentType = res.headers.get('content-type') || '';
     const body = await res.text();
 
-    if (contentType.includes('text/html') || body.includes('Just a moment') || body.includes('cf_chl_opt') || body.includes('challenge-platform')) {
+    const isCFChallenge = body.includes('Just a moment') || body.includes('cf_chl_opt') || body.includes('challenge-platform') || body.includes('Enable JavaScript and cookies to continue');
+    if (isCFChallenge) {
       return NextResponse.json({
         success: false,
         error: 'Upstream API sedang dalam maintenance atau terkena proteksi Cloudflare. Silakan coba lagi nanti.',
