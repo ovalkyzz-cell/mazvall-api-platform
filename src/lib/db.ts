@@ -291,3 +291,122 @@ export async function updateSecuritySettings(settings: Record<string, string>) {
   );
   await prisma.$transaction(operations);
 }
+
+// ========== REVENUE / OMZET ==========
+export async function getRevenueStats() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const thisYear = new Date(now.getFullYear(), 0, 1);
+
+  const paidStatuses = ['paid', 'success'];
+
+  const [totalRevenue, todayRevenue, monthRevenue, yearRevenue, totalTransactions, todayTransactions, monthTransactions, yearTransactions] = await Promise.all([
+    prisma.transaction.aggregate({ _sum: { amount: true }, where: { status: { in: paidStatuses } } }),
+    prisma.transaction.aggregate({ _sum: { amount: true }, where: { status: { in: paidStatuses }, paidAt: { gte: today } } }),
+    prisma.transaction.aggregate({ _sum: { amount: true }, where: { status: { in: paidStatuses }, paidAt: { gte: thisMonth } } }),
+    prisma.transaction.aggregate({ _sum: { amount: true }, where: { status: { in: paidStatuses }, paidAt: { gte: thisYear } } }),
+    prisma.transaction.count({ where: { status: { in: paidStatuses } } }),
+    prisma.transaction.count({ where: { status: { in: paidStatuses }, paidAt: { gte: today } } }),
+    prisma.transaction.count({ where: { status: { in: paidStatuses }, paidAt: { gte: thisMonth } } }),
+    prisma.transaction.count({ where: { status: { in: paidStatuses }, paidAt: { gte: thisYear } } }),
+  ]);
+
+  return {
+    total: totalRevenue._sum.amount || 0,
+    today: todayRevenue._sum.amount || 0,
+    thisMonth: monthRevenue._sum.amount || 0,
+    thisYear: yearRevenue._sum.amount || 0,
+    totalTransactions,
+    todayTransactions,
+    monthTransactions,
+    yearTransactions,
+  };
+}
+
+export async function getRevenueByPlan() {
+  const paidStatuses = ['paid', 'success'];
+
+  const result = await prisma.transaction.groupBy({
+    by: ['planId'],
+    _sum: { amount: true },
+    _count: true,
+    where: { status: { in: paidStatuses } },
+  });
+
+  const plans = await prisma.plan.findMany({
+    select: { id: true, name: true, price: true },
+  });
+
+  const planMap = new Map(plans.map(p => [p.id, p]));
+
+  return result.map(r => ({
+    planId: r.planId,
+    planName: planMap.get(r.planId)?.name || 'Unknown',
+    price: planMap.get(r.planId)?.price || 0,
+    totalRevenue: r._sum.amount || 0,
+    totalSales: r._count,
+  }));
+}
+
+export async function getDailyRevenue(days: number) {
+  const paidStatuses = ['paid', 'success'];
+  const result: { date: string; revenue: number; transactions: number }[] = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const dayStart = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const agg = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      _count: true,
+      where: { status: { in: paidStatuses }, paidAt: { gte: dayStart, lt: dayEnd } },
+    });
+
+    result.push({
+      date: dayStart.toISOString().split('T')[0],
+      revenue: agg._sum.amount || 0,
+      transactions: agg._count,
+    });
+  }
+  return result;
+}
+
+export async function getRecentTransactions(limit = 20) {
+  const paidStatuses = ['paid', 'success'];
+
+  return prisma.transaction.findMany({
+    where: { status: { in: paidStatuses } },
+    include: {
+      user: { select: { name: true, email: true } },
+      plan: { select: { name: true, price: true } },
+    },
+    orderBy: { paidAt: 'desc' },
+    take: limit,
+  });
+}
+
+export async function getMonthlyRevenue(year: number) {
+  const paidStatuses = ['paid', 'success'];
+  const result: { month: string; revenue: number; transactions: number }[] = [];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+  for (let m = 0; m < 12; m++) {
+    const monthStart = new Date(year, m, 1);
+    const monthEnd = new Date(year, m + 1, 0, 23, 59, 59);
+
+    const agg = await prisma.transaction.aggregate({
+      _sum: { amount: true },
+      _count: true,
+      where: { status: { in: paidStatuses }, paidAt: { gte: monthStart, lte: monthEnd } },
+    });
+
+    result.push({
+      month: months[m],
+      revenue: agg._sum.amount || 0,
+      transactions: agg._count,
+    });
+  }
+  return result;
+}
