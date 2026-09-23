@@ -55,7 +55,7 @@ export default function HomePage() {
             transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
             className="mb-8"
           >
-            <AnimatedLogo size="lg" showText={false} />
+            <AnimatedLogo size="xl" showText={false} />
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}>

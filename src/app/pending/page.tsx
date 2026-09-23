@@ -63,7 +63,7 @@ export default function PendingPage() {
         <div className="max-w-lg mx-auto text-center">
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <AnimatedLogo size="lg" showText={false} />
+            <AnimatedLogo size="xl" showText={false} />
           </div>
 
           <motion.div

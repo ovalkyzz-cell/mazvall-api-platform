@@ -55,7 +55,7 @@ export default function RegisterPage() {
       >
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-            <AnimatedLogo size="lg" showText={false} />
+            <AnimatedLogo size="xl" showText={false} />
           </div>
           <h1 className="font-display text-3xl font-bold mb-2">Buat akun kamu</h1>
           <p className="text-white/40 text-sm">Gabung ke Platform API Api&apos;s Mazvall</p>
