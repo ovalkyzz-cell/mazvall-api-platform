@@ -96,6 +96,9 @@ const allEndpoints: Endpoint[] = [
 
   { method: "GET", path: "/api/info/crypto", title: "Crypto", desc: "Harga cryptocurrency", category: "Info", icon: Globe, params: [{ name: "coin", placeholder: "bitcoin, ethereum, dll" }] },
   { method: "GET", path: "/api/info/gempa", title: "Gempa", desc: "Info gempa terkini", category: "Info", icon: Globe, params: [] },
+  { method: "GET", path: "/api/info/provinsi", title: "Provinsi", desc: "Daftar provinsi Indonesia", category: "Info", icon: Globe, params: [] },
+  { method: "GET", path: "/api/info/kota", title: "Kota/Kabupaten", desc: "Daftar kota per provinsi", category: "Info", icon: Globe, params: [{ name: "id", placeholder: "ID Provinsi (31, 32, dll)", required: true }] },
+  { method: "GET", path: "/api/info/alquran", title: "Al-Quran", desc: "Data Al-Quran 114 surat", category: "Info", icon: Sparkles, params: [{ name: "nomor", placeholder: "Nomor surat (1-114)" }] },
   { method: "GET", path: "/api/info/netflix", title: "Netflix", desc: "Cek akun Netflix", category: "Info", icon: Search, params: [{ name: "email", placeholder: "Email Netflix", required: true }] },
   { method: "GET", path: "/api/info/netflix-trending", title: "Netflix Trending", desc: "Film trending Netflix", category: "Info", icon: Globe, params: [] },
   { method: "GET", path: "/api/info/spotify-top", title: "Spotify Top", desc: "Top lagu Spotify", category: "Info", icon: Music, params: [] },
@@ -111,6 +114,7 @@ const allEndpoints: Endpoint[] = [
   { method: "GET", path: "/api/info/tafsir-mimpi", title: "Tafsir Mimpi", desc: "Tafsir mimpi 2D/3D/4D", category: "Info", icon: Search, params: [{ name: "query", placeholder: "Mimpi", required: true }] },
 
   { method: "GET", path: "/api/tools/currency", title: "Currency", desc: "Konversi mata uang", category: "Tools", icon: Globe, params: [{ name: "from", placeholder: "USD" }, { name: "to", placeholder: "IDR" }, { name: "amount", placeholder: "1" }] },
+  { method: "GET", path: "/api/tools/tracking", title: "Tracking Paket", desc: "Lacak paket ekspedisi", category: "Tools", icon: Globe, params: [{ name: "tracking", placeholder: "Nomor resi", required: true }, { name: "courier", placeholder: "jne, jnt, sicepat, pos, tiki" }] },
   { method: "GET", path: "/api/tools/ip-lookup", title: "IP Lookup", desc: "Cek info IP address", category: "Tools", icon: Search, params: [{ name: "ip", placeholder: "1.1.1.1" }] },
   { method: "GET", path: "/api/tools/ssweb", title: "SS Web", desc: "Screenshot website", category: "Tools", icon: Image, params: [{ name: "url", placeholder: "URL website", required: true }] },
   { method: "GET", path: "/api/tools/domain-recon", title: "Domain Recon", desc: "Reconnaissance domain", category: "Tools", icon: Globe, params: [{ name: "domain", placeholder: "example.com", required: true }] },
