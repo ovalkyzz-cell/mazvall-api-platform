@@ -1,3 +1,5 @@
+// Jalur pendek untuk endpoint yang sama: /o/{key}/{alias}
+// Contoh: /o/MVAL-XXXX/gempa -> /api/info/gempa
 import { openHandler, openOptions } from '@/lib/openHandler';
 
 export const OPTIONS = openOptions;

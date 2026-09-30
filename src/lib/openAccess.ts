@@ -1,8 +1,11 @@
 import { prisma } from '@/lib/prisma';
 import { generateApiKeyString } from '@/lib/db';
+import { OPEN_ALIASES, OPEN_ALIASES_LOWER } from '@/lib/openAliases';
 
 export const OPEN_KEY_NAME = 'Open Endpoint (Rahasia)';
 export const OPEN_PREFIX = '/open';
+// Prefiks pendek untuk jalur yang sama: /o/{key}/{alias}
+export const OPEN_SHORT_PREFIX = '/o';
 
 // Namespace layanan publik yang boleh dijangkau lewat jalur tanpa key.
 // Akun/pembayaran/admin sengaja tidak masuk daftar ini.
@@ -17,19 +20,43 @@ const rpd = Number(process.env.OPEN_RPD) || 50000;
 
 export const OPEN_RATE_LIMITS = { rpm, rph, rpd };
 
+// Format key: lengkap (MVAL-xxx) atau bentuk pendek tanpa awalan (min. 8 karakter).
 export function isOpenKeyFormat(key: string): boolean {
-  return /^MVAL-[A-Za-z0-9_-]{4,60}$/.test(key);
+  return /^(MVAL-[A-Za-z0-9_-]{4,60}|[A-Za-z0-9_-]{8,60})$/.test(key);
+}
+
+// Cari record key jalur tanpa key. Hanya key ber-nama OPEN_KEY_NAME yang boleh
+// cocok — key milik user biasa tidak bisa dipakai lewat jalur ini.
+export async function findOpenKey(rawKey: string) {
+  const keyFilter = rawKey.startsWith('MVAL-')
+    ? { equals: rawKey }
+    : { endsWith: rawKey };
+
+  return prisma.apiKey.findFirst({
+    where: { key: keyFilter, name: OPEN_KEY_NAME },
+    include: { user: { select: { status: true } } },
+  });
 }
 
 // Ubah sisa path menjadi target /api/... yang sah, atau null jika di luar jalur layanan.
+// Mendukung alias pendek: /o/{key}/gempa -> /api/info/gempa
 export function resolveOpenTarget(segments: string[]): string | null {
   if (!Array.isArray(segments) || segments.length === 0) return null;
   if (segments.some(s => !s || s === '.' || s === '..' || s.includes('/') || s.includes('\\') || s.includes('\0'))) {
     return null;
   }
 
-  const rel = `/${segments.join('/')}`;
-  const target = rel === '/api' || rel.startsWith('/api/') ? rel : `/api${rel}`;
+  let target: string | null = null;
+  if (segments.length === 1) {
+    const slug = segments[0];
+    target = OPEN_ALIASES[slug] ?? OPEN_ALIASES_LOWER[slug.toLowerCase()] ?? null;
+  }
+
+  if (!target) {
+    const rel = `/${segments.join('/')}`;
+    target = rel === '/api' || rel.startsWith('/api/') ? rel : `/api${rel}`;
+  }
+
   if (!target.startsWith('/api/')) return null;
 
   const namespace = target.slice('/api/'.length).split('/')[0];
@@ -40,6 +67,10 @@ export function resolveOpenTarget(segments: string[]): string | null {
 
 export function buildOpenBaseUrl(origin: string, key: string): string {
   return `${origin.replace(/\/+$/, '')}${OPEN_PREFIX}/${key}`;
+}
+
+export function buildOpenShortBaseUrl(origin: string, key: string): string {
+  return `${origin.replace(/\/+$/, '')}${OPEN_SHORT_PREFIX}/${key}`;
 }
 
 export async function ensureOpenKey(adminUserId: string) {

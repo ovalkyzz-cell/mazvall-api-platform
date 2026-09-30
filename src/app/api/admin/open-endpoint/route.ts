@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
-import { buildOpenBaseUrl, ensureOpenKey, rotateOpenKey, OPEN_KEY_NAME, OPEN_NAMESPACES, OPEN_RATE_LIMITS } from '@/lib/openAccess';
+import { buildOpenBaseUrl, buildOpenShortBaseUrl, ensureOpenKey, rotateOpenKey, OPEN_KEY_NAME, OPEN_NAMESPACES, OPEN_RATE_LIMITS } from '@/lib/openAccess';
+import { OPEN_ALIAS_COUNT } from '@/lib/openAliases';
 
 async function payload(req: NextRequest, adminUserId: string, key: { id: string; key: string; createdAt: Date }) {
   const now = new Date();
@@ -16,6 +17,9 @@ async function payload(req: NextRequest, adminUserId: string, key: { id: string;
   return {
     baseUrl: buildOpenBaseUrl(req.nextUrl.origin, key.key),
     sampleUrl: `${buildOpenBaseUrl(req.nextUrl.origin, key.key)}/api/info/gempa`,
+    shortBaseUrl: buildOpenShortBaseUrl(req.nextUrl.origin, key.key),
+    shortSampleUrl: `${buildOpenShortBaseUrl(req.nextUrl.origin, key.key)}/gempa`,
+    aliasCount: OPEN_ALIAS_COUNT,
     keyId: key.id,
     createdAt: key.createdAt,
     lastUsedAt: lastUsed?.lastUsedAt || null,

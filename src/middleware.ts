@@ -127,7 +127,8 @@ export function middleware(request: NextRequest) {
   }
 
   const isRateLimitedPath = (pathname.startsWith('/api/') && !pathname.startsWith('/api/admin/'))
-    || pathname.startsWith('/open/');
+    || pathname.startsWith('/open/')
+    || pathname.startsWith('/o/');
 
   if (isRateLimitedPath) {
     if (!checkSlidingWindow(ip)) {

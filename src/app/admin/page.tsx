@@ -35,6 +35,9 @@ interface RevenueData {
 interface OpenEndpoint {
   baseUrl: string;
   sampleUrl: string;
+  shortBaseUrl: string;
+  shortSampleUrl: string;
+  aliasCount: number;
   createdAt: string;
   lastUsedAt: string | null;
   rateLimit: { rpm: number; rph: number; rpd: number };
@@ -240,6 +243,16 @@ export default function AdminPage() {
               </div>
               <p className="text-[11px] text-white/30 mt-2">
                 Contoh: <code className="text-white/50 break-all">{openApi ? openApi.sampleUrl : "..."}</code>
+              </p>
+              <p className="text-[11px] text-white/30 mt-1.5">
+                <span className="text-neon-magenta/70">Versi pendek</span>{" "}
+                ({openApi ? openApi.aliasCount : "-"} alias):{" "}
+                <code className="text-white/50 break-all">{openApi ? openApi.shortSampleUrl : "..."}</code>
+              </p>
+              <p className="text-[11px] text-white/30 mt-1.5">
+                Alias endpoint: ganti <code className="text-white/50">gempa</code> dengan alias lain, mis.{" "}
+                <code className="text-white/50">am-verif-send</code>, <code className="text-white/50">translate</code>,
+                atau path penuh <code className="text-white/50">/api/tools/am-verif-send</code>
               </p>
             </div>
           </div>
