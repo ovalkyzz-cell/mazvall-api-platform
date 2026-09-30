@@ -22,12 +22,13 @@ function resolveEndpoint(req: NextRequest, fallback: string): string {
   return path.startsWith('/api/') ? path : fallback;
 }
 
-// Pollinations memakai kuota anonim: setelah satu generasi, permintaan berikutnya
-// dibalas 402 selama jendela ±20-30 detik. Karena itu respons 402/429/gagal diulang
-// dengan jeda agar pelanggan API (mis. bot Whatsap Indo) tetap menerima jawaban.
-const POLLINATIONS_ATTEMPTS = 3;
-const POLLINATIONS_BACKOFF_MS = [0, 14_000, 18_000];
-const POLLINATIONS_DEADLINE_MS = 35_000;
+// Pollinations memakai kuota anonim: satu IP hanya dapat satu generasi ± tiap 30 detik dan
+// sisanya dibalas 402 (respons cepat, tanpa biaya). Karena itu endpoint ini menyelidiki ulang
+// tiap 10 detik sampai batas waktu supaya pelanggan API (mis. bot Whatsap Indo) tetap menerima
+// jawaban, bukan error 502.
+const POLLINATIONS_ATTEMPTS = 6;
+const POLLINATIONS_BACKOFF_MS = [0, 10_000, 10_000, 10_000, 10_000, 10_000];
+const POLLINATIONS_DEADLINE_MS = 45_000;
 
 async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?: any; error?: string }> {
   const encodedPrompt = encodeURIComponent(prompt);
@@ -45,9 +46,9 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
   for (let attempt = 0; attempt < POLLINATIONS_ATTEMPTS; attempt += 1) {
     const remaining = POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt);
     if (remaining < 8_000) break;
-    const wait = POLLINATIONS_BACKOFF_MS[attempt] ?? 14_000;
+    const wait = POLLINATIONS_BACKOFF_MS[attempt] ?? 10_000;
     if (wait > 0) {
-      if (wait > remaining - 6_000) break;
+      if (wait > remaining - 8_000) break;
       await new Promise((resolve) => setTimeout(resolve, wait));
     }
 
@@ -55,7 +56,7 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
       const res = await fetch(url, {
         method: 'GET',
         headers,
-        signal: AbortSignal.timeout(Math.min(20_000, POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt))),
+        signal: AbortSignal.timeout(Math.min(16_000, POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt))),
       });
 
       const text = await res.text();
