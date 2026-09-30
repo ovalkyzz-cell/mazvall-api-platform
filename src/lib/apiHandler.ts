@@ -22,34 +22,62 @@ function resolveEndpoint(req: NextRequest, fallback: string): string {
   return path.startsWith('/api/') ? path : fallback;
 }
 
+// Pollinations memakai kuota anonim: setelah satu generasi, permintaan berikutnya
+// dibalas 402 selama jendela ±20-30 detik. Karena itu respons 402/429/gagal diulang
+// dengan jeda agar pelanggan API (mis. bot Whatsap Indo) tetap menerima jawaban.
+const POLLINATIONS_ATTEMPTS = 3;
+const POLLINATIONS_BACKOFF_MS = [0, 14_000, 18_000];
+const POLLINATIONS_DEADLINE_MS = 35_000;
+
 async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?: any; error?: string }> {
   const encodedPrompt = encodeURIComponent(prompt);
   const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai`;
+  const headers = {
+    Accept: 'text/plain',
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    Referer: 'https://mazval.zone.id/',
+  };
 
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'text/plain' },
-      signal: AbortSignal.timeout(60000),
-    });
+  const startedAt = Date.now();
+  let lastError = 'Pollinations returned empty response';
 
-    const text = await res.text();
-
-    if (res.status === 200 && text && !text.includes('"error"') && !text.includes('budget')) {
-      return {
-        ok: true,
-        data: {
-          status: true,
-          creator: 'mazval',
-          result: text.trim(),
-        },
-      };
+  for (let attempt = 0; attempt < POLLINATIONS_ATTEMPTS; attempt += 1) {
+    const remaining = POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt);
+    if (remaining < 8_000) break;
+    const wait = POLLINATIONS_BACKOFF_MS[attempt] ?? 14_000;
+    if (wait > 0) {
+      if (wait > remaining - 6_000) break;
+      await new Promise((resolve) => setTimeout(resolve, wait));
     }
 
-    return { ok: false, error: text || 'Pollinations returned empty response' };
-  } catch (err: any) {
-    return { ok: false, error: err?.message || 'Pollinations timeout' };
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: AbortSignal.timeout(Math.min(20_000, POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt))),
+      });
+
+      const text = await res.text();
+
+      if (res.status === 200 && text && !text.includes('"error"') && !text.includes('budget')) {
+        return {
+          ok: true,
+          data: {
+            status: true,
+            creator: 'mazval',
+            result: text.trim(),
+          },
+        };
+      }
+
+      lastError = `HTTP ${res.status}: ${(text || '').slice(0, 200)}`;
+    } catch (err: any) {
+      lastError = err?.message || 'Pollinations timeout';
+    }
   }
+
+  return { ok: false, error: lastError };
 }
 
 async function tryUpstream(servicePath: string, params: URLSearchParams): Promise<{ ok: boolean; data?: any; status?: number }> {
