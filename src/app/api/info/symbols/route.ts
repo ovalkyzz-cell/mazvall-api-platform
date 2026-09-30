@@ -17,15 +17,30 @@ export async function GET(req: NextRequest) {
     const provinceId = params.get('id') || params.get('province');
 
     const baseUrl = 'https://symbolsofindonesia.vercel.app';
-    const url = provinceId ? `${baseUrl}/provinces/${provinceId}` : `${baseUrl}/provinces`;
+    const url = provinceId ? `${baseUrl}/provinces/${provinceId}` : `${baseUrl}/provinces/list`;
 
     const res = await fetch(url, {
       signal: AbortSignal.timeout(15000),
     });
 
-    if (!res.ok) throw new Error(`Symbols API error: ${res.status}`);
+    if (!res.ok) {
+      return NextResponse.json({
+        success: false,
+        error: `Layanan simbol provinsi tidak tersedia (status ${res.status})`,
+        endpoint: '/api/info/symbols',
+      }, { status: 502 });
+    }
 
-    const data = await res.json();
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      return NextResponse.json({
+        success: false,
+        error: 'Layanan simbol provinsi mengembalikan respons tidak valid',
+        endpoint: '/api/info/symbols',
+      }, { status: 502 });
+    }
 
     await logApiUsage(auth.keyId, auth.user.userId, '/api/info/symbols', 'GET', 200, req.headers.get('x-forwarded-for') || undefined);
 
@@ -38,6 +53,10 @@ export async function GET(req: NextRequest) {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message || 'Terjadi kesalahan server' }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      error: `Layanan simbol provinsi gagal dihubungi: ${error?.message || 'timeout'}`,
+      endpoint: '/api/info/symbols',
+    }, { status: 502 });
   }
 }

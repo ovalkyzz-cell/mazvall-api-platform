@@ -2,14 +2,63 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateApiKey, checkRateLimit, logApiUsage } from '@/lib/apikey';
 
 const BASE = 'https://nusantara.clowdlab.com/api/v1';
+const EMSIFA = 'https://www.emsifa.com/api-wilayah-indonesia/api';
+
+async function fetchJson(url: string, headers: Record<string, string> = {}): Promise<any> {
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+  if (!res.ok) {
+    const err: any = new Error(`Upstream error: ${res.status}`);
+    err.upstreamStatus = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+async function fetchEmsifa(path: string): Promise<any> {
+  if (path === '/regions/provinces') {
+    const data = await fetchJson(`${EMSIFA}/provinces.json`);
+    return data.map((p: any) => ({ id: p.id, name: p.name, source: 'emsifa' }));
+  }
+
+  const singleProvince = path.match(/^\/regions\/provinces\/(\d+)$/);
+  if (singleProvince) {
+    const data = await fetchJson(`${EMSIFA}/provinces.json`);
+    const found = data.find((p: any) => String(p.id) === singleProvince[1]);
+    if (!found) {
+      const err: any = new Error('Upstream error: 404');
+      err.upstreamStatus = 404;
+      throw err;
+    }
+    return { id: found.id, name: found.name, source: 'emsifa' };
+  }
+
+  const regencies = path.match(/^\/regions\/provinces\/(\d+)\/regencies$/);
+  if (regencies) {
+    const data = await fetchJson(`${EMSIFA}/regencies/${regencies[1]}.json`);
+    return data.map((r: any) => ({ id: r.id, province_id: r.province_id, name: r.name, source: 'emsifa' }));
+  }
+
+  const districts = path.match(/^\/regions\/regencies\/(\d+)\/districts$/);
+  if (districts) {
+    const data = await fetchJson(`${EMSIFA}/districts/${districts[1]}.json`);
+    return data.map((d: any) => ({ id: d.id, regency_id: d.regency_id, name: d.name, source: 'emsifa' }));
+  }
+
+  const err: any = new Error('FALLBACK_UNAVAILABLE');
+  err.upstreamStatus = 0;
+  throw err;
+}
 
 async function fetchNusantara(path: string): Promise<any> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'accept': '*/*' },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`Nusantara API error: ${res.status}`);
-  return res.json();
+  try {
+    return await fetchJson(`${BASE}${path}`, { 'accept': '*/*' });
+  } catch (primaryError: any) {
+    try {
+      return await fetchEmsifa(path);
+    } catch {
+      throw primaryError;
+    }
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -104,6 +153,13 @@ export async function GET(req: NextRequest) {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message || 'Terjadi kesalahan server' }, { status: 500 });
+    const upstream = error?.upstreamStatus || String(error?.message || '').includes('Upstream error');
+    return NextResponse.json({
+      success: false,
+      error: upstream
+        ? `Layanan data wilayah tidak tersedia (status ${error?.upstreamStatus || 'unknown'})`
+        : (error?.message || 'Terjadi kesalahan server'),
+      endpoint: '/api/info/wilayah',
+    }, { status: upstream ? 502 : 500 });
   }
 }

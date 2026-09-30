@@ -5,7 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { motion } from "framer-motion";
-import { Users, Key, Activity, BarChart3, Shield, Settings, DollarSign, TrendingUp, ShoppingCart, Calendar } from "lucide-react";
+import { Users, Key, Activity, BarChart3, Shield, Settings, DollarSign, TrendingUp, ShoppingCart, Calendar, EyeOff, Copy, RefreshCw, Link2, Check } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 interface AdminData {
@@ -32,6 +32,17 @@ interface RevenueData {
   transactions: any[];
 }
 
+interface OpenEndpoint {
+  baseUrl: string;
+  sampleUrl: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  rateLimit: { rpm: number; rph: number; rpd: number };
+  namespaces: string[];
+  usage: { today: number; total: number };
+  note: string;
+}
+
 const formatRupiah = (amount: number) => `Rp ${amount.toLocaleString("id-ID")}`;
 
 export default function AdminPage() {
@@ -40,6 +51,10 @@ export default function AdminPage() {
   const [data, setData] = useState<AdminData | null>(null);
   const [revenue, setRevenue] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openApi, setOpenApi] = useState<OpenEndpoint | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [origin, setOrigin] = useState("");
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) router.push("/auth/login");
@@ -67,6 +82,43 @@ export default function AdminPage() {
       }).finally(() => setLoading(false));
     }
   }, [token, user]);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  useEffect(() => {
+    if (!token || user?.role !== "admin") return;
+    fetch("/api/admin/open-endpoint", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(res => { if (res.success) setOpenApi(res.data); })
+      .catch(() => {});
+  }, [token, user]);
+
+  const copyOpenUrl = async () => {
+    if (!openApi) return;
+    try {
+      await navigator.clipboard.writeText(openApi.baseUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  const rotateOpenKey = async () => {
+    if (!token || rotating) return;
+    if (!window.confirm("Ganti key jalur tanpa key? URL lama langsung mati dan semua konsumen lama berhenti bekerja.")) return;
+    setRotating(true);
+    try {
+      const res = await fetch("/api/admin/open-endpoint", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "rotate" }),
+      }).then(r => r.json());
+      if (res.success) setOpenApi(res.data);
+    } finally {
+      setRotating(false);
+    }
+  };
 
   if (authLoading || !user) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-neon-cyan border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -132,6 +184,91 @@ export default function AdminPage() {
             </motion.div>
           ))}
         </div>
+
+        {/* Dua jalur API: ber-key (publik) & tanpa-key (rahasia admin) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="glass-card p-6"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <EyeOff size={16} className="text-neon-magenta" />
+              <h3 className="font-display font-semibold">Dua Jalur Endpoint</h3>
+            </div>
+            <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-neon-magenta/40 text-neon-magenta/80">
+              Hanya admin
+            </span>
+          </div>
+
+          <p className="text-xs text-white/40 mb-5 max-w-3xl">
+            Jalur <span className="text-white/70">dengan key</span> terdokumentasi di halaman docs dan terbuka untuk umum.
+            Jalur <span className="text-neon-magenta/90">tanpa key</span> tidak tercantum di mana pun — URL-nya hanya tampil
+            di halaman ini. Siapa pun yang memiliki URL tersebut bisa memakainya tanpa mendaftar, jadi jangan dibagikan
+            selain ke pihak yang kamu tuju.
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Key size={13} className="text-neon-cyan" />
+                <span className="text-[11px] uppercase tracking-widest text-white/40">Jalur 1 · Dengan key</span>
+              </div>
+              <code className="block text-xs text-neon-cyan/90 break-all">{origin}/api/&#123;endpoint&#125;</code>
+              <p className="text-[11px] text-white/30 mt-2">
+                Wajib menyertakan <code className="text-white/50">?apikey=MVAL-...</code> atau header
+                <code className="text-white/50"> x-api-key</code>. Terdokumentasi publik.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-neon-magenta/30 bg-neon-magenta/5 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Link2 size={13} className="text-neon-magenta" />
+                <span className="text-[11px] uppercase tracking-widest text-neon-magenta/70">Jalur 2 · Tanpa key</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <code className="text-xs text-white/85 break-all flex-1">{openApi ? openApi.baseUrl : "memuat..."}</code>
+                <button
+                  onClick={copyOpenUrl}
+                  disabled={!openApi}
+                  className="shrink-0 flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-neon-magenta/40 text-neon-magenta hover:bg-neon-magenta/10 disabled:opacity-40 transition-colors"
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                  {copied ? "Tersalin" : "Salin"}
+                </button>
+              </div>
+              <p className="text-[11px] text-white/30 mt-2">
+                Contoh: <code className="text-white/50 break-all">{openApi ? openApi.sampleUrl : "..."}</code>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 mt-5 pt-4 border-t border-white/10">
+            <div className="text-[11px] text-white/35 space-y-1">
+              <div>
+                Rate limit: <span className="text-white/60">{openApi?.rateLimit.rpm}/menit per IP</span>
+                <span className="mx-2 text-white/15">·</span>
+                kuota <span className="text-white/60">{openApi?.rateLimit.rpd.toLocaleString()}/hari</span>
+                <span className="mx-2 text-white/15">·</span>
+                terpakai hari ini <span className="text-neon-lime">{openApi?.usage.today ?? 0}</span>
+              </div>
+              <div>
+                Terakhir dipakai: <span className="text-white/60">
+                  {openApi?.lastUsedAt ? new Date(openApi.lastUsedAt).toLocaleString("id-ID") : "belum pernah"}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={rotateOpenKey}
+              disabled={rotating || !openApi}
+              className="flex items-center gap-2 text-[11px] px-3 py-1.5 rounded border border-white/15 text-white/60 hover:text-white hover:border-white/40 disabled:opacity-40 transition-colors"
+            >
+              <RefreshCw size={12} className={rotating ? "animate-spin" : ""} />
+              {rotating ? "Mengganti..." : "Ganti key (rotate)"}
+            </button>
+          </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Daily Revenue Chart */}

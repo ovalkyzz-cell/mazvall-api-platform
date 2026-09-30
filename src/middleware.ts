@@ -126,7 +126,10 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/admin/')) {
+  const isRateLimitedPath = (pathname.startsWith('/api/') && !pathname.startsWith('/api/admin/'))
+    || pathname.startsWith('/open/');
+
+  if (isRateLimitedPath) {
     if (!checkSlidingWindow(ip)) {
       trackSuspiciousActivity(ip, 'rate_limit');
       return NextResponse.json(

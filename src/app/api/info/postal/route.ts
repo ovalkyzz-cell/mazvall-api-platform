@@ -24,16 +24,42 @@ export async function GET(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const res = await fetch(`https://nusantara.clowdlab.com/api/v1/postal-codes/${code}`, {
-      headers: { 'accept': '*/*' },
-      signal: AbortSignal.timeout(10000),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`https://nusantara.clowdlab.com/api/v1/postal-codes/${code}`, {
+        headers: { 'accept': '*/*' },
+        signal: AbortSignal.timeout(10000),
+      });
+    } catch (error: any) {
+      return NextResponse.json({
+        success: false,
+        error: `Layanan data kode pos gagal dihubungi: ${error?.message || 'timeout'}`,
+        endpoint: '/api/info/postal',
+      }, { status: 502 });
+    }
 
-    if (!res.ok) {
+    if (res.status === 404) {
       return NextResponse.json({ success: false, error: `Kode pos ${code} tidak ditemukan` }, { status: 404 });
     }
 
-    const data = await res.json();
+    if (!res.ok) {
+      return NextResponse.json({
+        success: false,
+        error: `Layanan data kode pos tidak tersedia (status ${res.status})`,
+        endpoint: '/api/info/postal',
+      }, { status: 502 });
+    }
+
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      return NextResponse.json({
+        success: false,
+        error: 'Layanan data kode pos mengembalikan respons tidak valid',
+        endpoint: '/api/info/postal',
+      }, { status: 502 });
+    }
 
     await logApiUsage(auth.keyId, auth.user.userId, '/api/info/postal', 'GET', 200, req.headers.get('x-forwarded-for') || undefined);
 

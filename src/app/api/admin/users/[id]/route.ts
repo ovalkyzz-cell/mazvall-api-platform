@@ -20,6 +20,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
     if (error.message === 'Forbidden') return authResponse('Forbidden', 403);
+    if (error?.code === 'P2025') {
+      return NextResponse.json({ success: false, error: 'User tidak ditemukan' }, { status: 404 });
+    }
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -32,6 +35,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
     if (error.message === 'Forbidden') return authResponse('Forbidden', 403);
+    if (error?.code === 'P2025') {
+      return NextResponse.json({ success: false, error: 'User tidak ditemukan' }, { status: 404 });
+    }
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

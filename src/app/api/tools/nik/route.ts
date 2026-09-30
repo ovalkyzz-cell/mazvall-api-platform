@@ -13,8 +13,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Batas rate limit tercapai', data: { limit: rateCheck.limit, remaining: rateCheck.remaining } }, { status: 429 });
     }
 
-    const body = await req.json();
-    const { nik, reference_year, century_override } = body;
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+    const { nik, reference_year, century_override } = body || {};
 
     if (!nik) {
       return NextResponse.json({
@@ -39,9 +44,32 @@ export async function POST(req: NextRequest) {
       signal: AbortSignal.timeout(15000),
     });
 
-    if (!res.ok) throw new Error(`NIK Parse error: ${res.status}`);
+    if (res.status === 404) {
+      return NextResponse.json({
+        success: false,
+        error: 'NIK tidak ditemukan atau tidak valid',
+        endpoint: '/api/tools/nik',
+      }, { status: 404 });
+    }
 
-    const data = await res.json();
+    if (!res.ok) {
+      return NextResponse.json({
+        success: false,
+        error: `Layanan parsing NIK tidak tersedia (status ${res.status})`,
+        endpoint: '/api/tools/nik',
+      }, { status: 502 });
+    }
+
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      return NextResponse.json({
+        success: false,
+        error: 'Layanan parsing NIK mengembalikan respons tidak valid',
+        endpoint: '/api/tools/nik',
+      }, { status: 502 });
+    }
 
     await logApiUsage(auth.keyId, auth.user.userId, '/api/tools/nik', 'POST', 200, req.headers.get('x-forwarded-for') || undefined);
 
