@@ -21,20 +21,25 @@ function walk(dir, out = []) {
 }
 
 const routes = walk(API_DIR)
-  .map(full => path.relative(path.join(ROOT, 'src', 'app'), full).replace(/\\/g, '/'))
-  .map(rel => rel.replace(/\/route\.(ts|tsx|js)$/, ''))
-  .map(rel => (rel.startsWith('/') ? rel : `/${rel}`))
-  .filter(rel => ALLOWED_NS.includes(rel.split('/')[2]));
+  .map(full => ({
+    full,
+    rel: path.relative(path.join(ROOT, 'src', 'app'), full).replace(/\\/g, '/')
+      .replace(/\/route\.(ts|tsx|js)$/, ''),
+  }))
+  .map(r => ({ ...r, rel: r.rel.startsWith('/') ? r.rel : `/${r.rel}` }))
+  .filter(r => ALLOWED_NS.includes(r.rel.split('/')[2]))
+  .map(r => ({ route: r.rel, file: r.full }));
 
 const lastCount = new Map();
-for (const route of routes) {
+for (const { route } of routes) {
   const last = route.split('/').pop();
   lastCount.set(last, (lastCount.get(last) || 0) + 1);
 }
 
 const aliases = new Map();
+const methods = new Map();
 const conflicts = [];
-for (const route of routes) {
+for (const { route, file } of routes) {
   const parts = route.split('/');
   const last = parts.pop();
   const ns = parts.pop();
@@ -44,6 +49,13 @@ for (const route of routes) {
     continue;
   }
   aliases.set(alias, route);
+
+  const source = fs.readFileSync(file, 'utf8');
+  const found = new Set();
+  for (const m of source.matchAll(/export\s+(?:async\s+)?(?:function|const)\s+(GET|POST|PUT|PATCH|DELETE)/g)) {
+    found.add(m[1]);
+  }
+  methods.set(alias, [...found].sort());
 }
 
 if (conflicts.length) {
@@ -65,6 +77,10 @@ ${body}
 
 export const OPEN_ALIASES_LOWER: Record<string, string> = {
 ${sorted.map(([alias, route]) => `  '${alias.toLowerCase()}': '${route}',`).join('\n')}
+};
+
+export const OPEN_METHODS: Record<string, string[]> = {
+${sorted.map(([alias]) => `  '${alias}': [${(methods.get(alias) || []).map(m => `'${m}'`).join(', ')}],`).join('\n')}
 };
 
 export const OPEN_ALIAS_COUNT = ${sorted.length};

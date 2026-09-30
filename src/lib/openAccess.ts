@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { generateApiKeyString } from '@/lib/db';
-import { OPEN_ALIASES, OPEN_ALIASES_LOWER } from '@/lib/openAliases';
+import { OPEN_ALIASES, OPEN_ALIASES_LOWER, OPEN_ALIAS_COUNT } from '@/lib/openAliases';
 
 export const OPEN_KEY_NAME = 'Open Endpoint (Rahasia)';
 export const OPEN_PREFIX = '/open';
@@ -14,28 +14,51 @@ export const OPEN_NAMESPACES = [
   'r', 'random', 's', 'stalk', 'sticker', 'tempmail', 'tools',
 ];
 
+// Namespace yang sengaja tidak dibuka lewat jalur tanpa key (dipakai untuk pesan error).
+const BLOCKED_NAMESPACES = [
+  'admin', 'auth', 'keys', 'support', 'payment', 'plan', 'plans',
+  'dashboard', 'coupons', 'discount', 'validate', 'security', 'health', 'user',
+];
+
 const rpm = Number(process.env.OPEN_RPM) || 60;
 const rph = Number(process.env.OPEN_RPH) || 3000;
 const rpd = Number(process.env.OPEN_RPD) || 50000;
 
 export const OPEN_RATE_LIMITS = { rpm, rph, rpd };
 
-// Format key: lengkap (MVAL-xxx) atau bentuk pendek tanpa awalan (min. 8 karakter).
+// Format key: lengkap (MVAL-xxx, boleh huruf kecil) atau bentuk pendek tanpa awalan (min. 8 karakter).
 export function isOpenKeyFormat(key: string): boolean {
-  return /^(MVAL-[A-Za-z0-9_-]{4,60}|[A-Za-z0-9_-]{8,60})$/.test(key);
+  return /^(MVAL-[A-Za-z0-9_-]{4,60}|[A-Za-z0-9_-]{8,60})$/i.test(key);
 }
 
-// Cari record key jalur tanpa key. Hanya key ber-nama OPEN_KEY_NAME yang boleh
-// cocok — key milik user biasa tidak bisa dipakai lewat jalur ini.
-export async function findOpenKey(rawKey: string) {
-  const keyFilter = rawKey.startsWith('MVAL-')
-    ? { equals: rawKey }
-    : { endsWith: rawKey };
+// Deteksi sisa placeholder di URL, mis. /o/{KEY}/gempa
+export function hasPlaceholder(value: string): boolean {
+  return /[{}]/.test(value);
+}
 
-  return prisma.apiKey.findFirst({
-    where: { key: keyFilter, name: OPEN_KEY_NAME },
-    include: { user: { select: { status: true } } },
+// Cari record key untuk jalur /o/ dan /open/.
+// Hanya key AKTIF milik user berstatus aktif; case-insensitive.
+// Key jalur rahasia dikenali lewat name = OPEN_KEY_NAME, key biasa tetap diterima
+// (perilakunya sama seperti memakai ?apikey= di jalur /api/).
+export async function findOpenKey(rawKey: string) {
+  const trimmed = rawKey.trim();
+  const include = { user: { select: { status: true, role: true } } };
+
+  const exact = await prisma.apiKey.findFirst({
+    where: { key: { equals: trimmed, mode: 'insensitive' } },
+    include,
   });
+  if (exact) return exact;
+
+  // Bentuk pendek tanpa awalan MVAL-: langsung coba MVAL- + isi key (cocok persis,
+  // tidak memakai endsWith supaya tidak bisa menyambar key user lain).
+  if (!/^mval-/i.test(trimmed)) {
+    return prisma.apiKey.findFirst({
+      where: { key: { equals: `MVAL-${trimmed}`, mode: 'insensitive' } },
+      include,
+    });
+  }
+  return null;
 }
 
 // Ubah sisa path menjadi target /api/... yang sah, atau null jika di luar jalur layanan.
@@ -63,6 +86,50 @@ export function resolveOpenTarget(segments: string[]): string | null {
   if (!OPEN_NAMESPACES.includes(namespace)) return null;
 
   return target;
+}
+
+// Alasan penolakan resolveOpenTarget() — hanya dipanggil SETELAH key terbukti sah,
+// jadi aman memberi pesan yang jelas tanpa membocorkan apa pun ke pihak luar.
+export function explainOpenTarget(segments: string[]): string {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return 'Endpoint belum ditulis. Buka base URL jalur ini (tanpa /alias) untuk melihat daftar 150 alias.';
+  }
+  if (segments.some(s => hasPlaceholder(s))) {
+    return 'URL masih menyisakan placeholder. Ganti {KEY} dengan key kamu dan {alias} dengan nama endpoint — contoh: gempa, am-verif-send, translate.';
+  }
+  if (segments.some(s => !s || s === '.' || s === '..' || s.includes('/') || s.includes('\\') || s.includes('\0'))) {
+    return 'Path tidak sah.';
+  }
+
+  const rel = `/${segments.join('/')}`;
+  const withoutApi = rel.startsWith('/api/') ? rel.slice('/api/'.length) : rel.slice(1);
+  const namespace = withoutApi.split('/')[0];
+  const slug = segments[segments.length - 1].toLowerCase();
+
+  const saran = Object.keys(OPEN_ALIASES)
+    .filter(a => a.toLowerCase().includes(slug) || slug.includes(a.toLowerCase()))
+    .slice(0, 5);
+
+  // Satu segmen = percobaan memakai alias pendek, bukan namespace.
+  if (segments.length === 1) {
+    const s = segments[0].toLowerCase();
+    const isBlockedNs = BLOCKED_NAMESPACES.some(b => s === b || s.startsWith(`${b}-`) || s.startsWith(`${b}_`));
+    if (isBlockedNs) {
+      return `Namespace "${segments[0]}" tidak tersedia di jalur tanpa key. Namespace yang boleh: ${OPEN_NAMESPACES.join(', ')}.`;
+    }
+    return saran.length > 0
+      ? `Alias "${segments[0]}" tidak dikenal. Mungkin maksud kamu: ${saran.join(', ')}.`
+      : `Alias "${segments[0]}" tidak dikenal. Buka base URL jalur ini (tanpa /alias) untuk daftar ${OPEN_ALIAS_COUNT} alias.`;
+  }
+
+  if (namespace && !OPEN_NAMESPACES.includes(namespace)) {
+    return `Namespace "${namespace}" tidak tersedia di jalur tanpa key. Namespace yang boleh: ${OPEN_NAMESPACES.join(', ')}.`;
+  }
+
+  if (saran.length > 0) {
+    return `Endpoint "${rel}" tidak dikenal. Mungkin maksud kamu: ${saran.join(', ')}.`;
+  }
+  return `Endpoint "${rel}" tidak dikenal. Buka base URL jalur ini (tanpa /alias) untuk daftar ${OPEN_ALIAS_COUNT} alias.`;
 }
 
 export function buildOpenBaseUrl(origin: string, key: string): string {

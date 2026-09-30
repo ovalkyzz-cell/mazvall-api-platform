@@ -37,6 +37,7 @@ interface OpenEndpoint {
   sampleUrl: string;
   shortBaseUrl: string;
   shortSampleUrl: string;
+  indexUrl: string;
   aliasCount: number;
   createdAt: string;
   lastUsedAt: string | null;
@@ -253,6 +254,17 @@ export default function AdminPage() {
                 Alias endpoint: ganti <code className="text-white/50">gempa</code> dengan alias lain, mis.{" "}
                 <code className="text-white/50">am-verif-send</code>, <code className="text-white/50">translate</code>,
                 atau path penuh <code className="text-white/50">/api/tools/am-verif-send</code>
+              </p>
+              <p className="text-[11px] text-white/30 mt-1.5">
+                Daftar semua alias{" "}
+                <a
+                  href={openApi?.indexUrl || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-neon-magenta/80 underline underline-offset-2 break-all"
+                >
+                  {openApi ? openApi.indexUrl : "..."}
+                </a>
               </p>
             </div>
           </div>

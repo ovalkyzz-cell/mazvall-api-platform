@@ -19,6 +19,7 @@ async function payload(req: NextRequest, adminUserId: string, key: { id: string;
     sampleUrl: `${buildOpenBaseUrl(req.nextUrl.origin, key.key)}/api/info/gempa`,
     shortBaseUrl: buildOpenShortBaseUrl(req.nextUrl.origin, key.key),
     shortSampleUrl: `${buildOpenShortBaseUrl(req.nextUrl.origin, key.key)}/gempa`,
+    indexUrl: `${buildOpenShortBaseUrl(req.nextUrl.origin, key.key)}`,
     aliasCount: OPEN_ALIAS_COUNT,
     keyId: key.id,
     createdAt: key.createdAt,
