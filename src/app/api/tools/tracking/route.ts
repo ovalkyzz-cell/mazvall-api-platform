@@ -30,12 +30,61 @@ export async function GET(req: NextRequest) {
     }
 
     if (!TRACKINGMORE_API_KEY) {
-      return NextResponse.json({
-        success: false,
-        error: 'TrackingMore API key belum dikonfigurasi di server',
-        endpoint: '/api/tools/tracking',
-        note: 'Admin perlu mengatur environment variable TRACKINGMORE_API_KEY',
-      }, { status: 503 });
+      // Cadangan: API cek resi gratis tanpa key (deteksi kurir otomatis).
+      // Data placeholder (tanpa tanggal perjalanan) dianggap tidak ditemukan
+      // agar tidak menampilkan status yang dikarang sumber.
+      const sumber = 'cek-resi.romi.my.id';
+      try {
+        const fb = await fetch(`https://cek-resi.romi.my.id/cek-resi/${encodeURIComponent(trackingNumber)}`, {
+          headers: { Accept: 'application/json', 'User-Agent': 'MazVal-API/1.0' },
+          signal: AbortSignal.timeout(20000),
+        });
+        const body: any = await fb.json().catch(() => null);
+        const info = body?.data?.data;
+        const perjalanan: any[] = Array.isArray(info?.perjalanan) ? info.perjalanan : [];
+        const adaPerjalanan = perjalanan.some((p) => p && p.tanggal && String(p.tanggal).trim() && String(p.tanggal).trim() !== '-');
+
+        if (!fb.ok || !info || !adaPerjalanan) {
+          return NextResponse.json({
+            success: false,
+            error: 'Nomor resi tidak ditemukan atau belum ada perjalanan. Pastikan nomor & kurir benar.',
+            endpoint: '/api/tools/tracking',
+            tracking_number: trackingNumber,
+            courier,
+            sumber,
+          }, { status: 404 });
+        }
+
+        await logApiUsage(auth.keyId, auth.user.userId, '/api/tools/tracking', 'GET', 200, req.headers.get('x-forwarded-for') || undefined);
+
+        return NextResponse.json({
+          success: true,
+          creator: 'mazval',
+          endpoint: '/api/tools/tracking',
+          sumber,
+          data: {
+            tracking_number: trackingNumber,
+            courier,
+            status: info.status || 'unknown',
+            tracking: {
+              expedisi: info.expedisi,
+              pengirim: info.pengirim,
+              penerima: info.penerima,
+              tujuan: info.tujuan,
+              tanggal_kirim: info.tanggalKirim,
+              perjalanan,
+            },
+          },
+        }, {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+      } catch {
+        return NextResponse.json({
+          success: false,
+          error: 'Layanan lacak paket sedang tidak tersedia. Coba lagi beberapa saat lagi.',
+          endpoint: '/api/tools/tracking',
+        }, { status: 503 });
+      }
     }
 
     const trackingRes = await fetch('https://api.trackingmore.com/v4/trackings/create', {

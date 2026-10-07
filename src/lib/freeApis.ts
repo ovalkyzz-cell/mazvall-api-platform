@@ -24,6 +24,37 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+const NGL_SUBMIT = 'https://ngl.link/api/submit';
+const NGL_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+// Terima https://ngl.link/username, https://username.ngl.link, atau slug polos
+function extractNglUsername(input: string): string | null {
+  const raw = String(input || '').trim();
+  if (!raw) return null;
+  if (!raw.includes('.')) return /^[a-z0-9._-]{2,40}$/i.test(raw) ? raw : null;
+  try {
+    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/+/, '')}`);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    if (host === 'ngl.link') return url.pathname.split('/').filter(Boolean)[0] || null;
+    if (host.endsWith('.ngl.link')) return host.slice(0, -'.ngl.link'.length) || null;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function submitNgl(username: string, question: string): Promise<string> {
+  const res = await fetch(NGL_SUBMIT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': NGL_UA },
+    body: JSON.stringify({ username, question, gameId: '4' }),
+    signal: AbortSignal.timeout(TIMEOUT),
+  });
+  const body: any = await res.json().catch(() => null);
+  if (!res.ok || !body || !body.questionId) throw new Error('API_UNAVAILABLE');
+  return String(body.questionId);
+}
+
 const FREE_APIS: Record<string, (params: URLSearchParams) => Promise<any>> = {
 
   '/api/random/waifu': async () => {
@@ -203,6 +234,64 @@ const FREE_APIS: Record<string, (params: URLSearchParams) => Promise<any>> = {
     const url = params.get('url') || 'https://google.com';
     if (!url.startsWith('http')) return { status: false, creator: 'mazval', message: 'URL harus diawali http/https' };
     return { status: true, creator: 'mazval', result: { url: `https://image.thum.io/get/width/1200/crop/800/${url}`, target: url } };
+  },
+
+  // Pesan anonim NGL: kirim satu pertanyaan ke link NGL milik pengguna
+  '/api/tools/ngl': async (params) => {
+    const rawLink = (params.get('link') || params.get('url') || '').trim();
+    const text = (params.get('text') || params.get('pesan') || params.get('message') || '').trim();
+    if (!rawLink) throw paramError('Parameter link wajib diisi. Contoh: ?link=https://ngl.link/username&text=halo', 400);
+    if (!text) throw paramError('Parameter text wajib diisi. Contoh: ?link=https://ngl.link/username&text=halo', 400);
+    const username = extractNglUsername(rawLink);
+    if (!username) throw paramError('Link NGL tidak valid. Contoh: https://ngl.link/username', 400);
+
+    const questionId = await submitNgl(username, text);
+    return {
+      status: true,
+      creator: 'mazval',
+      result: {
+        link: `https://ngl.link/${username}`,
+        username,
+        pesan: text,
+        question_id: questionId,
+        terkirim: 1,
+        sumber: 'ngl.link',
+      },
+    };
+  },
+
+  // Pesan anonim NGL berulang: jumlah dibatasi 10x supaya tidak menyalahgunakan layanan
+  '/api/tools/ngl-spam': async (params) => {
+    const rawLink = (params.get('link') || params.get('url') || '').trim();
+    const pesan = (params.get('pesan') || params.get('text') || params.get('message') || '').trim();
+    if (!rawLink) throw paramError('Parameter link wajib diisi. Contoh: ?link=https://ngl.link/username&pesan=halo&jumlah=5', 400);
+    if (!pesan) throw paramError('Parameter pesan wajib diisi. Contoh: ?link=https://ngl.link/username&pesan=halo&jumlah=5', 400);
+    const username = extractNglUsername(rawLink);
+    if (!username) throw paramError('Link NGL tidak valid. Contoh: https://ngl.link/username', 400);
+
+    let jumlah = parseInt(params.get('jumlah') || '5', 10);
+    if (!Number.isFinite(jumlah) || jumlah < 1) jumlah = 5;
+    jumlah = Math.min(jumlah, 10);
+
+    const hasil = await Promise.allSettled(
+      Array.from({ length: jumlah }, () => submitNgl(username, pesan)),
+    );
+    const idList = hasil.filter((h) => h.status === 'fulfilled').map((h) => (h as PromiseFulfilledResult<string>).value);
+    if (idList.length === 0) throw new Error('API_UNAVAILABLE');
+
+    return {
+      status: true,
+      creator: 'mazval',
+      result: {
+        link: `https://ngl.link/${username}`,
+        username,
+        pesan,
+        jumlah_diminta: jumlah,
+        terkirim: idList.length,
+        gagal: jumlah - idList.length,
+        sumber: 'ngl.link',
+      },
+    };
   },
 
   '/api/tools/currency': async (params) => {
