@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as cheerio from 'cheerio';
 
 const TIMEOUT = 12000;
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 let countryCache: { time: number; list: any[] } | null = null;
 let namaCache: any[] | null = null;
@@ -535,7 +538,9 @@ const FREE_APIS: Record<string, (params: URLSearchParams) => Promise<any>> = {
 
   '/api/info/jadwal-bola': async (params) => {
     const tanggal = params.get('date') || new Date().toISOString().slice(0, 10);
-    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${tanggal}&s=Soccer`, { signal: AbortSignal.timeout(TIMEOUT) });
+    // Kunci uji lama "3" sudah dicabut permanen oleh TheSportsDB (403 + pesan
+    // "please use the new test key 123") sehingga bot Jadwal Bola selalu 503.
+    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=${tanggal}&s=Soccer`, { signal: AbortSignal.timeout(TIMEOUT) });
     if (!res.ok) throw new Error('API_UNAVAILABLE');
     const body = await res.json();
     const events = Array.isArray(body?.events) ? body.events : [];
@@ -763,13 +768,59 @@ const FREE_APIS: Record<string, (params: URLSearchParams) => Promise<any>> = {
 
   '/api/s/myinstants': async (params) => {
     const q = (params.get('q') || params.get('query') || '').trim();
+
+    // Sumber lama (myinstants-api.vercel.app) kini DEPLOYMENT_PAUSED -> selalu
+    // 503 dan mematikan bot "Suara MyInstants". Situsnya sendiri masih hidup,
+    // jadi kartu suaranya dibaca langsung: mp3 ada di onclick tombol play,
+    // judulnya di tautan instant-link.
+    try {
+      const page = await fetch(`https://www.myinstants.com/en/search/?name=${encodeURIComponent(q)}`, {
+        headers: { 'User-Agent': BROWSER_UA, Accept: 'text/html,application/xhtml+xml' },
+        signal: AbortSignal.timeout(TIMEOUT),
+      });
+      if (page.ok) {
+        const $ = cheerio.load(await page.text());
+        const data: any[] = [];
+        $('div.instant').each((_, el) => {
+          const card = $(el);
+          const onclick = card.find('button.small-button').attr('onclick') || '';
+          const audio = (onclick.match(/play\(\s*'([^']+)'/i) || [])[1] || '';
+          const link = card.find('a.instant-link').first();
+          const nama = link.text().trim();
+          const href = link.attr('href') || '';
+          if (!audio || !nama) return;
+          try {
+            data.push({
+              nama,
+              audio: new URL(audio, 'https://www.myinstants.com').toString(),
+              halaman: href ? new URL(href, 'https://www.myinstants.com').toString() : null,
+            });
+          } catch {
+            data.push({ nama, audio, halaman: href || null });
+          }
+        });
+        if (data.length) {
+          return {
+            status: true,
+            creator: 'mazval',
+            result: { query: q || 'populer', total: data.length, data: data.slice(0, 20), sumber: 'MyInstants' },
+          };
+        }
+      }
+    } catch {
+      // jatuh ke pemindaian cadangan di bawah
+    }
+
+    // cadangan lama bila pemindaian situs berubah bentuk
     const url = q
       ? `https://myinstants-api.vercel.app/search?q=${encodeURIComponent(q)}`
       : 'https://myinstants-api.vercel.app/trending?q=id';
-    const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) });
-    if (!res.ok) throw new Error('API_UNAVAILABLE');
-    const data = await res.json();
-    return { status: true, creator: 'mazval', result: { query: q || 'trending', data, sumber: 'MyInstants' } };
+    const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) }).catch(() => null);
+    if (res && res.ok) {
+      const data = await res.json();
+      return { status: true, creator: 'mazval', result: { query: q || 'trending', data, sumber: 'MyInstants' } };
+    }
+    throw new Error('API_UNAVAILABLE');
   },
 
   '/api/tools/qr-detect': async (params) => {
@@ -872,11 +923,16 @@ const FREE_APIS: Record<string, (params: URLSearchParams) => Promise<any>> = {
     if (buf.length === 0) throw paramError('Gambar kosong atau tidak valid', 400);
     if (buf.length > 5_000_000) throw paramError('Ukuran gambar maksimal 5MB', 400);
 
-    const ctype = (img.headers.get('content-type') || 'image/png').split(';')[0];
+    const ctype = (img.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
     const extMap: Record<string, string> = {
       'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/gif': 'gif',
-      'image/webp': 'webp', 'image/bmp': 'bmp', 'image/tiff': 'tiff',
+      'image/webp': 'webp', 'image/bmp': 'bmp', 'image/tiff': 'tiff', 'application/pdf': 'pdf',
     };
+    // link yang berujung halaman HTML (mis. gambar dihapus/di-redirect) tidak
+    // boleh diteruskan: pengguna hanya akan dapat error teknis OCR.space
+    if (!ctype.startsWith('image/') && ctype !== 'application/pdf') {
+      throw paramError(`URL tersebut bukan gambar (tipe: ${ctype || 'tidak diketahui'}). Pakai tautan gambar langsung, contoh: ?url=https://example.com/gambar.png`, 400);
+    }
     const ext = extMap[ctype] || 'png';
 
     const form = new FormData();
@@ -886,8 +942,16 @@ const FREE_APIS: Record<string, (params: URLSearchParams) => Promise<any>> = {
     form.append('OCREngine', (params.get('engine') || '2').trim());
     form.append('scale', 'true');
     const res = await fetch('https://api.ocr.space/parse/image/', { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
-    if (!res.ok) throw new Error('API_UNAVAILABLE');
-    const body = await res.json();
+    const body = await res.json().catch(() => null);
+    if (!body) throw new Error('API_UNAVAILABLE');
+    if (!res.ok) {
+      const parts = [
+        body.error,
+        body.details,
+        Array.isArray(body.ErrorMessage) ? body.ErrorMessage.join('; ') : body.ErrorMessage,
+      ].filter(Boolean);
+      throw paramError(parts.join(': ') || `OCR.space menolak gambar (HTTP ${res.status})`, 422);
+    }
     if (body?.IsErroredOnProcessing) {
       const msg = Array.isArray(body.ErrorMessage) ? body.ErrorMessage.join('; ') : String(body.ErrorMessage || 'OCR gagal memproses gambar');
       throw paramError(msg, 422);
@@ -943,18 +1007,34 @@ const FREE_APIS: Record<string, (params: URLSearchParams) => Promise<any>> = {
       .replace(/&quot;/g, '"')
       .replace(/&#39;|&apos;/g, "'")
       .replace(/[ \t]+/g, ' ');
+    // Dua format halaman Primbon: lama "Hasil pencarian untuk kata kunci:"
+    // dengan baris "kata = tafsir"; sejak 2026 situs memakai daftar berperingkat
+    // "#1100% Sangat Relevan" diikuti judul mimpi lalu tafsirnya.
+    const data: { mimpi: string; tafsir: string }[] = [];
     const mulai = teks.indexOf('Hasil pencarian untuk kata kunci:');
-    const akhir = teks.indexOf('Solusi -');
-    if (mulai === -1) throw paramError(`Tafsir mimpi untuk "${mimpi}" tidak ditemukan`, 404);
-    const bagian = teks.slice(mulai, akhir === -1 ? undefined : akhir);
-    const data = bagian.split('\n')
-      .map(l => l.trim())
-      .filter(l => l.includes('='))
-      .map(l => {
+    if (mulai !== -1) {
+      const akhir = teks.indexOf('Solusi -', mulai);
+      const bagian = teks.slice(mulai, akhir === -1 ? undefined : akhir);
+      for (const line of bagian.split('\n')) {
+        const l = line.trim();
+        if (!l.includes('=')) continue;
         const i = l.indexOf('=');
-        return { mimpi: l.slice(0, i).trim().replace(/^\d+\.\s*/, ''), tafsir: l.slice(i + 1).trim() };
-      })
-      .filter(x => x.mimpi && x.tafsir);
+        const judul = l.slice(0, i).trim().replace(/^\d+\.\s*/, '');
+        const isi = l.slice(i + 1).trim();
+        if (judul && isi) data.push({ mimpi: judul, tafsir: isi });
+      }
+    } else {
+      const lines = teks.split('\n').map(l => l.trim()).filter(Boolean);
+      for (let i = 0; i < lines.length - 2; i++) {
+        const rel = lines[i].match(/^#(\d+?)\s*(\d+)%\s*(.*)$/);
+        if (!rel) continue;
+        const judul = lines[i + 1];
+        const isi = lines[i + 2];
+        if (judul.startsWith('#') || isi.startsWith('#')) continue;
+        data.push({ mimpi: judul.replace(/^\d+\.\s*/, ''), tafsir: isi });
+        i += 2;
+      }
+    }
     if (data.length === 0) throw paramError(`Tafsir mimpi untuk "${mimpi}" tidak ditemukan`, 404);
     return { status: true, creator: 'mazval', result: { query: mimpi, total: data.length, data, sumber: 'Primbon.com' } };
   },
