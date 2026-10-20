@@ -26,9 +26,13 @@ function resolveEndpoint(req: NextRequest, fallback: string): string {
 // sisanya dibalas 402 (respons cepat, tanpa biaya). Karena itu endpoint ini menyelidiki ulang
 // tiap 10 detik sampai batas waktu supaya pelanggan API (mis. bot Whatsap Indo) tetap menerima
 // jawaban, bukan error 502.
-const POLLINATIONS_ATTEMPTS = 6;
-const POLLINATIONS_BACKOFF_MS = [0, 10_000, 10_000, 10_000, 10_000, 10_000];
-const POLLINATIONS_DEADLINE_MS = 45_000;
+// Catatan: prompt panjang (pertanyaan + instruksi format ±200 karakter) butuh ±24 detik untuk
+// dijawab — batas per percobaan dinaikkan dari 16 ke 26 detik supaya jawaban sempat sampai;
+// dulu prompt semacam itu selalu berakhir 502 "Layanan AI sedang tidak tersedia".
+const POLLINATIONS_ATTEMPTS = 3;
+const POLLINATIONS_BACKOFF_MS = [0, 10_000, 10_000];
+const POLLINATIONS_DEADLINE_MS = 50_000;
+const POLLINATIONS_ATTEMPT_TIMEOUT_MS = 26_000;
 
 async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?: any; error?: string }> {
   const encodedPrompt = encodeURIComponent(prompt);
@@ -56,7 +60,7 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
       const res = await fetch(url, {
         method: 'GET',
         headers,
-        signal: AbortSignal.timeout(Math.min(16_000, POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt))),
+        signal: AbortSignal.timeout(Math.min(POLLINATIONS_ATTEMPT_TIMEOUT_MS, POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt))),
       });
 
       const text = await res.text();
