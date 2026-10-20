@@ -222,8 +222,9 @@ function summarizeAiError(err?: string): string {
   if (/HTTP 402/.test(e)) return ' — kuota provider habis';
   if (/HTTP 429/.test(e)) return ' — terlalu banyak permintaan';
   if (/timeout|timed out/i.test(e)) return ' — provider terlalu lama menjawab';
-  if (/HTTP (4\d\d|5\d\d)/.test(e)) return ' — provider bermasalah';
   if (/fetch failed|ENOTFOUND|ECONN|EAI_AGAIN/i.test(e)) return ' — jaringan ke provider';
+  const http = e.match(/^HTTP (\d{3})/);
+  if (http) return ` — provider membalas HTTP ${http[1]}`;
   return '';
 }
 
@@ -272,6 +273,7 @@ export function createApiHandler(servicePath: string) {
           });
         }
 
+        console.warn('[ai-gagal]', endpoint, String(pollResult.error || '').slice(0, 300));
         return NextResponse.json({
           success: false,
           error: `Layanan AI sedang tidak tersedia${summarizeAiError(pollResult.error)}. Silakan coba lagi nanti.`,
