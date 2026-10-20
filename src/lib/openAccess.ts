@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { generateApiKeyString } from '@/lib/db';
+import { staticAdminAuth } from '@/lib/apikey';
 import { OPEN_ALIASES, OPEN_ALIASES_LOWER, OPEN_ALIAS_COUNT } from '@/lib/openAliases';
 
 export const OPEN_KEY_NAME = 'Open Endpoint (Rahasia)';
@@ -40,25 +41,51 @@ export function hasPlaceholder(value: string): boolean {
 // Hanya key AKTIF milik user berstatus aktif; case-insensitive.
 // Key jalur rahasia dikenali lewat name = OPEN_KEY_NAME, key biasa tetap diterima
 // (perilakunya sama seperti memakai ?apikey= di jalur /api/).
+// Rekaman pengganti untuk key statis, dipakai bila database tidak terjangkau.
+// `name` sengaja BUKAN OPEN_KEY_NAME supaya applyRateLimit() memilih jalur
+// checkRateLimit(), yang untuk role admin langsung lolos tanpa query apa pun.
+function staticOpenRecord(rawKey: string) {
+  if (!staticAdminAuth(rawKey)) return null;
+  return {
+    id: 'static-admin',
+    key: rawKey,
+    name: 'Static Admin Key',
+    active: true,
+    userId: 'static-admin',
+    user: { status: 'active' as const, role: 'admin' as const },
+  };
+}
+
 export async function findOpenKey(rawKey: string) {
   const trimmed = rawKey.trim();
+
+  // Jalur andalan — sama seperti validateApiKey(): key statis lolos tanpa DB,
+  // sehingga /o/{key}/... tetap hidup saat Neon mati.
+  const statis = staticOpenRecord(trimmed);
+  if (statis) return statis;
+
   const include = { user: { select: { status: true, role: true } } };
 
-  const exact = await prisma.apiKey.findFirst({
-    where: { key: { equals: trimmed, mode: 'insensitive' } },
-    include,
-  });
-  if (exact) return exact;
-
-  // Bentuk pendek tanpa awalan MVAL-: langsung coba MVAL- + isi key (cocok persis,
-  // tidak memakai endsWith supaya tidak bisa menyambar key user lain).
-  if (!/^mval-/i.test(trimmed)) {
-    return prisma.apiKey.findFirst({
-      where: { key: { equals: `MVAL-${trimmed}`, mode: 'insensitive' } },
+  try {
+    const exact = await prisma.apiKey.findFirst({
+      where: { key: { equals: trimmed, mode: 'insensitive' } },
       include,
     });
+    if (exact) return exact;
+
+    // Bentuk pendek tanpa awalan MVAL-: langsung coba MVAL- + isi key (cocok persis,
+    // tidak memakai endsWith supaya tidak bisa menyambar key user lain).
+    if (!/^mval-/i.test(trimmed)) {
+      return await prisma.apiKey.findFirst({
+        where: { key: { equals: `MVAL-${trimmed}`, mode: 'insensitive' } },
+        include,
+      });
+    }
+    return null;
+  } catch {
+    // Database tidak terjangkau: tolak bersih, jangan bocor jadi 500.
+    return null;
   }
-  return null;
 }
 
 // Ubah sisa path menjadi target /api/... yang sah, atau null jika di luar jalur layanan.
@@ -177,15 +204,21 @@ export async function checkOpenRateLimit(keyId: string): Promise<{ allowed: bool
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   const minAgo = new Date(now.getTime() - 60 * 1000);
 
-  const [minCount, hourCount, dayCount] = await Promise.all([
-    prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: minAgo } } }),
-    prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: hourAgo } } }),
-    prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: today } } }),
-  ]);
+  try {
+    const [minCount, hourCount, dayCount] = await Promise.all([
+      prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: minAgo } } }),
+      prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: hourAgo } } }),
+      prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: today } } }),
+    ]);
 
-  if (minCount >= rpm) return { allowed: false, remaining: 0, limit: rpm, retryAfter: 60 };
-  if (hourCount >= rph) return { allowed: false, remaining: 0, limit: rph, retryAfter: 3600 };
-  if (dayCount >= rpd) return { allowed: false, remaining: 0, limit: rpd, retryAfter: 86400 };
+    if (minCount >= rpm) return { allowed: false, remaining: 0, limit: rpm, retryAfter: 60 };
+    if (hourCount >= rph) return { allowed: false, remaining: 0, limit: rph, retryAfter: 3600 };
+    if (dayCount >= rpd) return { allowed: false, remaining: 0, limit: rpd, retryAfter: 86400 };
 
-  return { allowed: true, remaining: rpd - dayCount, limit: rpd, retryAfter: 0 };
+    return { allowed: true, remaining: rpd - dayCount, limit: rpd, retryAfter: 0 };
+  } catch {
+    // Penghitung pemakaian ikut mati bila DB tak terjangkau — gagal-terbuka
+    // supaya jalur tetap terbuka, bukan 500.
+    return { allowed: true, remaining: rpd, limit: rpd, retryAfter: 0 };
+  }
 }

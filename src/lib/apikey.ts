@@ -17,6 +17,60 @@ export interface ApiKeyUser {
   keyId: string;
 }
 
+/* ---------- Jalur andalan: key statis dari env ----------
+
+   Database (Neon) bisa lumpuh total — mis. kuota proyek habis, endpoint tidak
+   terjangkau — dan saat itu SEMUA permintaan gagal di `apiKey.findUnique`,
+   padahal layanannya sendiri (upstream api-faa.my.id, Pollinations, freeApis
+   lokal) tidak memakai database sama sekali. Artinya satu DB mati ikut
+   mematikan fitur yang tidak bergantung padanya.
+
+   `STATIC_ADMIN_KEYS` memutus ketergantungan itu: key yang dicantumkan operator
+   lolos tanpa menyentuh DB. Karena role = 'admin', seluruh rantai berikutnya
+   (cek paket/fitur, rate limit) ikut tidak memanggil DB. Daftar kosong =
+   tidak ada key statis = perilaku lama persis. */
+const STATIC_ADMIN_KEYS = new Set(
+  String(process.env.STATIC_ADMIN_KEYS || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+/* Penanda "database tidak terjangkau" berumur pendek.
+
+   Tanpa ini, key valid yang gagal diverifikasi hanya karena DB mati akan
+   diteriaki 401 "API key tidak valid" — pesan menyesatkan yang membuat admin
+   memutar-balikkan env key padahal masalahnya di database. authenticateRequest()
+   memakai penanda ini untuk memilih 503 (DB mati) vs 401 (key memang salah). */
+let dbUnreachableUntil = 0;
+const DB_DOWN_GRACE_MS = 30_000;
+
+export function isDbUnreachable(): boolean {
+  return Date.now() < dbUnreachableUntil;
+}
+
+function markDbUnreachable() {
+  dbUnreachableUntil = Date.now() + DB_DOWN_GRACE_MS;
+}
+
+export function staticAdminAuth(apiKey: string): ApiKeyUser | null {
+  const raw = String(apiKey || '').trim();
+  if (!raw) return null;
+  // Sama seperti jalur database: key pendek tanpa awalan MVAL- tetap diterima
+  // (mis. /o/LCNJPGEM/... = /o/MVAL-LCNJPGEM/...).
+  const candidates = [raw.toLowerCase()];
+  if (!/^mval-/i.test(raw)) candidates.push(`mval-${raw.toLowerCase()}`);
+  if (!candidates.some((c) => STATIC_ADMIN_KEYS.has(c))) return null;
+  return {
+    userId: 'static-admin',
+    email: 'static-admin@localhost',
+    role: 'admin',
+    tier: 'admin',
+    planId: null,
+    keyId: 'static-admin',
+  };
+}
+
 export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUser; keyId: string } | null> {
   const apiKey = req.headers.get('x-api-key') || req.nextUrl.searchParams.get('apikey');
 
@@ -66,19 +120,33 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
     return null;
   }
 
+  // Jalur andalan: dicek SEBELUM format key & SEBELUM query DB supaya tetap
+  // berfungsi ketika database tidak terjangkau (dan tanpa query yang tidak perlu).
+  const staticAuth = staticAdminAuth(apiKey);
+  if (staticAuth) return { user: staticAuth, keyId: staticAuth.keyId };
+
   if (!apiKey.startsWith('MVAL-') || apiKey.length < 10 || apiKey.length > 50) {
     return null;
   }
 
-  const key = await prisma.apiKey.findUnique({
-    where: { key: apiKey },
-    include: { user: { select: { id: true, email: true, role: true, tier: true, status: true, planId: true } } },
-  });
+  try {
+    const key = await prisma.apiKey.findUnique({
+      where: { key: apiKey },
+      include: { user: { select: { id: true, email: true, role: true, tier: true, status: true, planId: true } } },
+    });
 
-  if (!key || !key.active) return null;
-  if (key.user.status !== 'active') return null;
+    if (!key || !key.active) return null;
+    if (key.user.status !== 'active') return null;
 
-  return { user: { userId: key.user.id, email: key.user.email, role: key.user.role, tier: key.user.tier, planId: key.user.planId, keyId: key.id }, keyId: key.id };
+    return { user: { userId: key.user.id, email: key.user.email, role: key.user.role, tier: key.user.tier, planId: key.user.planId, keyId: key.id }, keyId: key.id };
+  } catch {
+    // Database tidak terjangkau. Dulu error ini merambat ke penangan atas dan
+    // berujung 500 "Terjadi kesalahan server" pada SEMUA endpoint. Tolak bersih
+    // (401) sebagai gantinya — key statis di atas sudah menangani kasus yang
+    // memang harus tetap hidup.
+    markDbUnreachable();
+    return null;
+  }
 }
 
 export async function checkRateLimit(keyId: string, userId: string, userRole?: string, userTier?: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
@@ -86,53 +154,68 @@ export async function checkRateLimit(keyId: string, userId: string, userRole?: s
     return { allowed: true, remaining: 999999, limit: 999999 };
   }
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { planId: true, tier: true } });
+  // Seluruh badan ini menyentuh database (paket, tier, penghitung pemakaian).
+  // Saat DB tidak terjangkau penghitungan mustahil dilakukan; membiarkan error
+  // merambat berarti seluruh endpoint jadi 500 tanpa sebab yang bisa
+  // ditindaklanjuti. Gagal-terbuka di sini aman: batas hanya bisa dihitung bila
+  // pencatatannya sendiri hidup, dan pencatatan di bawah sudah dibungkus.
   let rpd = 1000, rpm = 10, rph = 100;
 
-  if (user?.planId) {
-    const plan = await prisma.plan.findUnique({ where: { id: user.planId } });
-    if (plan) {
-      rpd = plan.requestsPerDay;
-      rpm = plan.requestsPerMin;
-      rph = plan.requestsPerHour;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { planId: true, tier: true } });
+
+    if (user?.planId) {
+      const plan = await prisma.plan.findUnique({ where: { id: user.planId } });
+      if (plan) {
+        rpd = plan.requestsPerDay;
+        rpm = plan.requestsPerMin;
+        rph = plan.requestsPerHour;
+      }
+    } else {
+      const tier = userTier || user?.tier || 'free';
+      const tierLimits: Record<string, { rpd: number; rpm: number; rph: number }> = {
+        free: { rpd: 1000, rpm: 30, rph: 200 },
+        Gratis: { rpd: 1000, rpm: 30, rph: 200 },
+        developer: { rpd: 20000, rpm: 60, rph: 2000 },
+        enterprise: { rpd: 100000, rpm: 300, rph: 10000 },
+        admin: { rpd: 999999, rpm: 999999, rph: 999999 },
+      };
+      const limits = tierLimits[tier] || tierLimits.free;
+      rpd = limits.rpd;
+      rpm = limits.rpm;
+      rph = limits.rph;
     }
-  } else {
-    const tier = userTier || user?.tier || 'free';
-    const tierLimits: Record<string, { rpd: number; rpm: number; rph: number }> = {
-      free: { rpd: 1000, rpm: 30, rph: 200 },
-      Gratis: { rpd: 1000, rpm: 30, rph: 200 },
-      developer: { rpd: 20000, rpm: 60, rph: 2000 },
-      enterprise: { rpd: 100000, rpm: 300, rph: 10000 },
-      admin: { rpd: 999999, rpm: 999999, rph: 999999 },
-    };
-    const limits = tierLimits[tier] || tierLimits.free;
-    rpd = limits.rpd;
-    rpm = limits.rpm;
-    rph = limits.rph;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const minAgo = new Date(now.getTime() - 60 * 1000);
+
+    const [todayCount, hourCount, minCount] = await Promise.all([
+      prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: today } } }),
+      prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: hourAgo } } }),
+      prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: minAgo } } }),
+    ]);
+
+    if (minCount >= rpm) return { allowed: false, remaining: 0, limit: rpm };
+    if (hourCount >= rph) return { allowed: false, remaining: 0, limit: rph };
+    if (todayCount >= rpd) return { allowed: false, remaining: 0, limit: rpd };
+
+    return { allowed: true, remaining: rpd - todayCount, limit: rpd };
+  } catch {
+    return { allowed: true, remaining: 999999, limit: 999999 };
   }
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-  const minAgo = new Date(now.getTime() - 60 * 1000);
-
-  const [todayCount, hourCount, minCount] = await Promise.all([
-    prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: today } } }),
-    prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: hourAgo } } }),
-    prisma.usageLog.count({ where: { apiKeyId: keyId, createdAt: { gte: minAgo } } }),
-  ]);
-
-  if (minCount >= rpm) return { allowed: false, remaining: 0, limit: rpm };
-  if (hourCount >= rph) return { allowed: false, remaining: 0, limit: rph };
-  if (todayCount >= rpd) return { allowed: false, remaining: 0, limit: rpd };
-
-  return { allowed: true, remaining: rpd - todayCount, limit: rpd };
 }
 
 export async function logApiUsage(keyId: string, userId: string, endpoint: string, method: string, status: number, ip?: string) {
-  await prisma.usageLog.create({
-    data: { apiKeyId: keyId, userId, endpoint, method, status, responseTime: Math.floor(Math.random() * 500) + 50, ip: ip || null },
-  });
+  try {
+    await prisma.usageLog.create({
+      data: { apiKeyId: keyId, userId, endpoint, method, status, responseTime: Math.floor(Math.random() * 500) + 50, ip: ip || null },
+    });
+  } catch {
+    // Pencatatan tidak boleh menjatuhkan respons yang sudah berhasil — bila DB
+    // sedang mati, lewati pencatatan.
+  }
 }
 
 export async function proxyToService(serviceUrl: string, req: NextRequest): Promise<NextResponse> {

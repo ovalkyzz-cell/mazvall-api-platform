@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiKey, checkRateLimit, logApiUsage } from '@/lib/apikey';
+import { validateApiKey, checkRateLimit, logApiUsage, isDbUnreachable } from '@/lib/apikey';
 import { hasAccess } from '@/lib/featureAccess';
 import { prisma } from '@/lib/prisma';
 
@@ -10,14 +10,21 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await validateApiKey(req);
     if (!auth) {
+      if (isDbUnreachable()) {
+        return NextResponse.json({ success: false, error: 'Database API sedang tidak terjangkau.', endpoint: '/api/tools/am-verif-check' }, { status: 503 });
+      }
       return NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint: '/api/tools/am-verif-check' }, { status: 401 });
     }
 
     if (auth.user.role !== 'admin') {
       let featureAccess = 'all';
       if (auth.user.planId) {
-        const plan = await prisma.plan.findUnique({ where: { id: auth.user.planId }, select: { featureAccess: true } });
-        if (plan) featureAccess = plan.featureAccess;
+        try {
+          const plan = await prisma.plan.findUnique({ where: { id: auth.user.planId }, select: { featureAccess: true } });
+          if (plan) featureAccess = plan.featureAccess;
+        } catch {
+          featureAccess = 'all';
+        }
       } else {
         featureAccess = 'ai,tempmail';
       }

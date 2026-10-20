@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiKey, checkRateLimit, logApiUsage, ApiKeyUser } from '@/lib/apikey';
+import { validateApiKey, checkRateLimit, logApiUsage, isDbUnreachable, ApiKeyUser } from '@/lib/apikey';
 import { hasAccess } from '@/lib/featureAccess';
 import { getFreeApiHandler, isFreeApiAvailable } from '@/lib/freeApis';
 import { prisma } from '@/lib/prisma';
@@ -125,14 +125,30 @@ export async function authenticateRequest(req: NextRequest, servicePath: string)
   const endpoint = resolveEndpoint(req, servicePath);
   const auth = await validateApiKey(req);
   if (!auth) {
+    // DB mati -> key tidak bisa diverifikasi. Bedakan dari key yang memang salah
+    // supaya pelanggan (bot Whatsap Indo) tidak disuruh mengganti key yang sah.
+    if (isDbUnreachable()) {
+      return {
+        response: NextResponse.json({
+          success: false,
+          error: 'Database API sedang tidak terjangkau. Key statis (STATIC_ADMIN_KEYS) tetap dilayani; key lain menyusul setelah database pulih.',
+          endpoint,
+        }, { status: 503 }),
+      };
+    }
     return { response: NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint }, { status: 401 }) };
   }
 
   if (auth.user.role !== 'admin') {
     let featureAccess = 'all';
     if (auth.user.planId) {
-      const plan = await prisma.plan.findUnique({ where: { id: auth.user.planId }, select: { featureAccess: true } });
-      if (plan) featureAccess = plan.featureAccess;
+      try {
+        const plan = await prisma.plan.findUnique({ where: { id: auth.user.planId }, select: { featureAccess: true } });
+        if (plan) featureAccess = plan.featureAccess;
+      } catch {
+        // DB tak terjangkau — pakai default tier di bawah, jangan mematikan request
+        featureAccess = 'all';
+      }
     } else {
       const tier = auth.user.tier || 'free';
       const tierFeatureAccess: Record<string, string> = {
