@@ -35,6 +35,27 @@ const POLLINATIONS_BACKOFF_MS = [0, 12_000, 12_000, 12_000, 12_000];
 const POLLINATIONS_DEADLINE_MS = 50_000;
 const POLLINATIONS_ATTEMPT_TIMEOUT_MS = 26_000;
 
+function isPollinationsErrorBody(status: number, text: string): boolean {
+  if (status !== 200) return true;
+  const t = String(text || '').trim();
+  if (!t) return true;
+  // pesan galat berbentuk teks (kuota/budget), bukan jawaban model
+  if (/^(error|free limit|quota|rate limit)\b/i.test(t)) return true;
+  if (t.length < 400 && /free limit reached|exceeded your|budget exceeded|rate limit/i.test(t)) return true;
+  // galat berbentuk JSON; jawaban model yang sah berupa JSON TIDAK punya
+  // error/success:false — dulu kata "budget" di dalam jawaban saja sudah
+  // cukup membuat jawaban bagus dibuang dan pengguna melihat 502
+  if (t.startsWith('{')) {
+    try {
+      const o = JSON.parse(t);
+      if (o && typeof o === 'object' && !Array.isArray(o)) {
+        if (o.error || o.success === false || (typeof o.status === 'number' && o.status >= 400)) return true;
+      }
+    } catch { /* teks biasa, bukan JSON */ }
+  }
+  return false;
+}
+
 async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?: any; error?: string }> {
   const encodedPrompt = encodeURIComponent(prompt);
   const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai`;
@@ -68,7 +89,7 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
 
       const text = await res.text();
 
-      if (res.status === 200 && text && !text.includes('"error"') && !text.includes('budget')) {
+      if (!isPollinationsErrorBody(res.status, text)) {
         return {
           ok: true,
           data: {
