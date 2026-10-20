@@ -22,15 +22,16 @@ function resolveEndpoint(req: NextRequest, fallback: string): string {
   return path.startsWith('/api/') ? path : fallback;
 }
 
-// Pollinations memakai kuota anonim: satu IP hanya dapat satu generasi ± tiap 30 detik dan
-// sisanya dibalas 402 (respons cepat, tanpa biaya). Karena itu endpoint ini menyelidiki ulang
-// tiap 10 detik sampai batas waktu supaya pelanggan API (mis. bot Whatsap Indo) tetap menerima
-// jawaban, bukan error 502.
-// Catatan: prompt panjang (pertanyaan + instruksi format ±200 karakter) butuh ±24 detik untuk
-// dijawab — batas per percobaan dinaikkan dari 16 ke 26 detik supaya jawaban sempat sampai;
-// dulu prompt semacam itu selalu berakhir 502 "Layanan AI sedang tidak tersedia".
-const POLLINATIONS_ATTEMPTS = 3;
-const POLLINATIONS_BACKOFF_MS = [0, 10_000, 10_000];
+// Pollinations memakai kuota anonim: satu IP hanya dapat satu generasi tiap 30 detik dan
+// sisanya dibalas 402 "FREE_LIMIT" (respons cepat, tanpa biaya) berisi sisa waktu tunggu.
+// Karena itu endpoint ini menyelidiki ulang sampai batas waktu — jeda percobaan mengikuti
+// angka "Retry after" dari 402, bukan jeda tetap, supaya percobaan berikutnya jatuh tepat
+// setelah kuota terbuka kembali (dulu percobaan berikutnya selalu kena 402 lagi dan bot AI
+// berakhir 502 "Layanan AI sedang tidak tersedia").
+// Prompt panjang (pertanyaan + instruksi format ±200 karakter) juga butuh ±24–30 detik untuk
+// dijawab, jadi batas per percobaan dinaikkan dari 16 ke 26 detik.
+const POLLINATIONS_ATTEMPTS = 5;
+const POLLINATIONS_BACKOFF_MS = [0, 12_000, 12_000, 12_000, 12_000];
 const POLLINATIONS_DEADLINE_MS = 50_000;
 const POLLINATIONS_ATTEMPT_TIMEOUT_MS = 26_000;
 
@@ -46,15 +47,17 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
 
   const startedAt = Date.now();
   let lastError = 'Pollinations returned empty response';
+  let nextWait: number | null = null;
 
   for (let attempt = 0; attempt < POLLINATIONS_ATTEMPTS; attempt += 1) {
     const remaining = POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt);
     if (remaining < 8_000) break;
-    const wait = POLLINATIONS_BACKOFF_MS[attempt] ?? 10_000;
-    if (wait > 0) {
+    const wait = nextWait ?? POLLINATIONS_BACKOFF_MS[attempt] ?? 12_000;
+    if (attempt > 0 && wait > 0) {
       if (wait > remaining - 8_000) break;
       await new Promise((resolve) => setTimeout(resolve, wait));
     }
+    nextWait = null;
 
     try {
       const res = await fetch(url, {
@@ -77,6 +80,13 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
       }
 
       lastError = `HTTP ${res.status}: ${(text || '').slice(0, 200)}`;
+      if (res.status === 402) {
+        // 402 = kuota 1 balasan / 30 detik / IP; tunggu sesuai angka yang
+        // disebut Pollinations (mis. "Retry after 28s") supaya tak sia-sia
+        const m = (text || '').match(/retry after (\d+)\s*s/i);
+        const retryAfterMs = (m ? Number(m[1]) : 20) * 1000;
+        nextWait = Math.min(Math.max(retryAfterMs - 2_000, 3_000), 28_000);
+      }
     } catch (err: any) {
       lastError = err?.message || 'Pollinations timeout';
     }
