@@ -82,8 +82,9 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
       lastError = `HTTP ${res.status}: ${(text || '').slice(0, 200)}`;
       if (res.status === 402) {
         // 402 = kuota 1 balasan / 30 detik / IP; tunggu sesuai angka yang
-        // disebut Pollinations (mis. "Retry after 28s") supaya tak sia-sia
-        const m = (text || '').match(/retry after (\d+)\s*s/i);
+        // disebut Pollinations ("Please wait 21 seconds" / "Retry after 28s")
+        // supaya percobaan berikutnya jatuh tepat setelah kuota terbuka
+        const m = (text || '').match(/(?:retry after|please wait)\s*(\d+)\s*(?:s|sec|second)/i);
         const retryAfterMs = (m ? Number(m[1]) : 20) * 1000;
         nextWait = Math.min(Math.max(retryAfterMs - 2_000, 3_000), 28_000);
       }
