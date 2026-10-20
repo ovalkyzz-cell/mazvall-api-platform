@@ -56,6 +56,19 @@ function isPollinationsErrorBody(status: number, text: string): boolean {
   return false;
 }
 
+// ambil jawaban dari respons OpenAI-compatible POST /openai; string kosong
+// berarti respons bukan jawaban valid (galat/rusak)
+function extractOpenAIAnswer(raw: string): string {
+  const t = String(raw || '').trim();
+  if (!t || !t.startsWith('{')) return '';
+  try {
+    const o = JSON.parse(t);
+    const content = o?.choices?.[0]?.message?.content ?? o?.choices?.[0]?.text ?? o?.content;
+    if (typeof content === 'string' && content.trim()) return content.trim();
+  } catch { /* bukan JSON valid */ }
+  return '';
+}
+
 async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?: any; error?: string }> {
   const encodedPrompt = encodeURIComponent(prompt);
   const url = `https://text.pollinations.ai/${encodedPrompt}?model=openai`;
@@ -69,6 +82,7 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
   const startedAt = Date.now();
   let lastError = 'Pollinations returned empty response';
   let nextWait: number | null = null;
+  let preferPost = false;
 
   for (let attempt = 0; attempt < POLLINATIONS_ATTEMPTS; attempt += 1) {
     const remaining = POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt);
@@ -81,21 +95,35 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
     nextWait = null;
 
     try {
-      const res = await fetch(url, {
-        method: 'GET',
-        headers,
+      // percobaan ganjil = GET (cepat), genap = POST /openai (jalur cadangan
+      // bila GET kena 404/rusak dari sisi provider)
+      const viaPost = preferPost || attempt % 2 === 1;
+      const res = await fetch(viaPost ? 'https://text.pollinations.ai/openai' : url, {
+        method: viaPost ? 'POST' : 'GET',
+        headers: viaPost
+          ? { ...headers, Accept: 'application/json', 'Content-Type': 'application/json' }
+          : headers,
+        body: viaPost
+          ? JSON.stringify({
+              model: 'openai',
+              messages: [{ role: 'user', content: prompt }],
+              stream: false,
+              private: true,
+            })
+          : undefined,
         signal: AbortSignal.timeout(Math.min(POLLINATIONS_ATTEMPT_TIMEOUT_MS, POLLINATIONS_DEADLINE_MS - (Date.now() - startedAt))),
       });
 
       const text = await res.text();
 
-      if (!isPollinationsErrorBody(res.status, text)) {
+      const answer = viaPost ? extractOpenAIAnswer(text) : (isPollinationsErrorBody(res.status, text) ? '' : text.trim());
+      if (res.status === 200 && answer) {
         return {
           ok: true,
           data: {
             status: true,
             creator: 'mazval',
-            result: text.trim(),
+            result: answer,
           },
         };
       }
@@ -108,6 +136,11 @@ async function callPollinationsAI(prompt: string): Promise<{ ok: boolean; data?:
         const m = (text || '').match(/(?:retry after|please wait)\s*(\d+)\s*(?:s|sec|second)/i);
         const retryAfterMs = (m ? Number(m[1]) : 20) * 1000;
         nextWait = Math.min(Math.max(retryAfterMs - 2_000, 3_000), 28_000);
+      } else if (res.status === 404 || res.status >= 500) {
+        // 404/5xx dari provider: pindah ke jalur POST untuk sisa percobaan
+        // dan beri jeda pendek supaya tidak dihantam terus-menerus
+        preferPost = true;
+        nextWait = Math.min(nextWait ?? 6_000, 8_000);
       }
     } catch (err: any) {
       lastError = err?.message || 'Pollinations timeout';
