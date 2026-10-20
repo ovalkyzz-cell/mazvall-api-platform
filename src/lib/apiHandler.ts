@@ -214,6 +214,19 @@ export async function authenticateRequest(req: NextRequest, servicePath: string)
   return { auth: { user: auth.user, keyId: auth.keyId } };
 }
 
+// ringkasan penyebab kegagalan AI untuk pesan error pengguna (dan log bot):
+// angka/status lebih berguna daripada "tidak tersedia" yang kabur
+function summarizeAiError(err?: string): string {
+  const e = String(err || '');
+  if (!e) return '';
+  if (/HTTP 402/.test(e)) return ' — kuota provider habis';
+  if (/HTTP 429/.test(e)) return ' — terlalu banyak permintaan';
+  if (/timeout|timed out/i.test(e)) return ' — provider terlalu lama menjawab';
+  if (/HTTP (4\d\d|5\d\d)/.test(e)) return ' — provider bermasalah';
+  if (/fetch failed|ENOTFOUND|ECONN|EAI_AGAIN/i.test(e)) return ' — jaringan ke provider';
+  return '';
+}
+
 export function createApiHandler(servicePath: string) {
   return async function handler(req: NextRequest) {
     try {
@@ -261,7 +274,7 @@ export function createApiHandler(servicePath: string) {
 
         return NextResponse.json({
           success: false,
-          error: 'Layanan AI sedang tidak tersedia. Silakan coba lagi nanti.',
+          error: `Layanan AI sedang tidak tersedia${summarizeAiError(pollResult.error)}. Silakan coba lagi nanti.`,
           endpoint,
         }, { status: 502 });
       }
