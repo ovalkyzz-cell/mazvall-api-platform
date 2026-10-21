@@ -77,6 +77,21 @@ export async function GET(req: NextRequest) {
     }
 
     if (!user) {
+      // admin statis (dan admin lain) tidak selalu punya baris pengguna —
+      // layani dari klaim JWT supaya panel tidak menampilkan 404
+      if (decoded.userId === 'static-admin' || decoded.role === 'admin') {
+        return NextResponse.json({
+          success: true,
+          data: {
+            tier: decoded.tier || 'enterprise',
+            planId: null,
+            planExpiry: null,
+            requestsToday: 0,
+            isExpired: false,
+            plan: null,
+          },
+        });
+      }
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isDbUnavailable } from '@/lib/staticAuth';
 
+// daftar plan harus dibaca tiap request (jangan di-cache saat build)
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const plans = await prisma.plan.findMany({
