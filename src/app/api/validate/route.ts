@@ -19,14 +19,20 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await findUserById(key.userId);
-    if (!user || user.status !== 'active') {
+    // key milik admin statis: baris penggunanya memang tidak ada di penyimpanan
+    const owner =
+      user ||
+      (key.userId === 'static-admin'
+        ? { id: 'static-admin', email: 'static-admin@localhost', role: 'admin', tier: 'enterprise', status: 'active', planId: null as string | null }
+        : null);
+    if (!owner || owner.status !== 'active') {
       return NextResponse.json({ success: false, error: 'User inactive or not found' }, { status: 401 });
     }
 
-    const tier = user.tier || 'free';
+    const tier = owner.tier || 'free';
     const limits = getTierLimits(tier);
 
-    if (user.role !== 'admin' && endpoint) {
+    if (owner.role !== 'admin' && endpoint) {
       let featureAccess = 'all';
       if (user.planId) {
         const plan = await prisma.plan.findUnique({ where: { id: user.planId }, select: { featureAccess: true } });

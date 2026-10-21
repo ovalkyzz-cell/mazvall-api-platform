@@ -24,26 +24,29 @@ export async function GET(req: NextRequest) {
       return successResponse({ user: safe });
     }
 
-    if (!dbDown) return authResponse('User not found');
-
-    // Database mati: pertahankan sesi dari klaim JWT supaya pengguna tidak
-    // langsung keluar — admin statis mendapat profil lengkap.
+    // Baris pengguna tidak ada: bisa jadi admin statis (memang tanpa baris)
+    // atau database sedang mati — keduanya dilayani dari klaim JWT supaya
+    // sesi panel tidak langsung dibuang.
     if (user.userId === 'static-admin' || matchesStaticAdminEmail(user.email)) {
-      const { ...safe } = staticAdminProfile();
+      const safe = staticAdminProfile();
       return successResponse({ user: safe });
     }
 
-    return successResponse({
-      user: {
-        id: user.userId,
-        email: user.email,
-        name: user.name || user.email.split('@')[0],
-        role: user.role,
-        tier: user.tier || 'free',
-        status: user.status || 'active',
-        planId: null,
-      },
-    });
+    if (dbDown) {
+      return successResponse({
+        user: {
+          id: user.userId,
+          email: user.email,
+          name: user.name || user.email.split('@')[0],
+          role: user.role,
+          tier: user.tier || 'free',
+          status: user.status || 'active',
+          planId: null,
+        },
+      });
+    }
+
+    return authResponse('User not found');
   } catch {
     return authResponse('Unauthorized');
   }

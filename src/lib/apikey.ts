@@ -138,6 +138,17 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
     });
 
     if (!key || !key.active) return null;
+    if (!key.user) {
+      // key admin statis tidak punya baris pengguna — tetap sah, jangan
+      // diperlakukan sebagai galat database
+      if (key.userId === 'static-admin') {
+        return {
+          user: { userId: 'static-admin', email: 'static-admin@localhost', role: 'admin', tier: 'admin', planId: null, keyId: key.id },
+          keyId: key.id,
+        };
+      }
+      return null;
+    }
     if (key.user.status !== 'active') return null;
 
     return { user: { userId: key.user.id, email: key.user.email, role: key.user.role, tier: key.user.tier, planId: key.user.planId, keyId: key.id }, keyId: key.id };
