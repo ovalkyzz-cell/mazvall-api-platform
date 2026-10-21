@@ -13,6 +13,12 @@ export async function POST(req: NextRequest) {
     }
 
     const ticket = await createTicket(user.userId, { subject, message, category, priority });
+    if (!ticket) {
+      return NextResponse.json(
+        { success: false, error: 'Layanan tiket sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
     return successResponse({ ticket }, 'Ticket created');
   } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

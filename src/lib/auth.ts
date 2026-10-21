@@ -7,6 +7,47 @@ export interface AuthUser {
   userId: string;
   email: string;
   role: string;
+  name?: string;
+  tier?: string;
+  status?: string;
+}
+
+const JWT_SECRET_INTERNAL = JWT_SECRET;
+
+export interface TokenUser {
+  id: string;
+  email: string;
+  name?: string;
+  role: string;
+  tier?: string;
+  status?: string;
+}
+
+// tanda tangan JWT tunggal untuk semua jalur login (DB maupun fallback statis)
+export function signUserToken(user: TokenUser): string {
+  return jwt.sign(
+    {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tier: user.tier,
+      status: user.status,
+      iat: Math.floor(Date.now() / 1000),
+    },
+    JWT_SECRET_INTERNAL,
+    { expiresIn: '7d', algorithm: 'HS256' }
+  );
+}
+
+export function setAuthCookie(token: string) {
+  return { name: 'mazvall_token', value: token, options: {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict' as const,
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+  } };
 }
 
 export function getTokenFromRequest(req: NextRequest): string | null {

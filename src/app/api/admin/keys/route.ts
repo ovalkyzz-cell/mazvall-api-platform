@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = await createApiKey(userId, name, rateLimit || 100);
+    if (!apiKey) {
+      return NextResponse.json(
+        { success: false, error: 'Layanan penyimpanan API key sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
     return successResponse({ apiKey }, 'API key generated');
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');

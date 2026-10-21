@@ -16,6 +16,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     const user = await updateUser(params.id, { tier, role, status });
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Database pengguna sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
     return successResponse({ user }, 'User updated');
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
@@ -30,7 +36,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const admin = requireAdmin(req);
-    await deleteUser(params.id);
+    const deleted = await deleteUser(params.id);
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, error: 'Database pengguna sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
     return successResponse(null, 'User deleted');
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { signUserToken } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { isDbUnavailable, matchesStaticAdminEmail, matchesStaticAdminPassword, staticAdminProfile } from '@/lib/staticAuth';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -66,6 +67,64 @@ function clearAttempts(ip: string): void {
   loginAttempts.delete(ip);
 }
 
+// undefined = database mati; null = akun tidak ditemukan
+async function findUserForLogin(email: string) {
+  try {
+    return await prisma.user.findUnique({ where: { email } });
+  } catch (err) {
+    if (!isDbUnavailable(err)) throw err;
+    console.error('Login: database tidak terjangkau:', (err as any)?.message || err);
+    return undefined;
+  }
+}
+
+interface LoginUserShape {
+  id: string;
+  email: string;
+  name?: string;
+  role: string;
+  tier?: string;
+  status?: string;
+  planId?: string | null;
+}
+
+function respondLogin(user: LoginUserShape) {
+  const token = signUserToken({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    tier: user.tier,
+    status: user.status,
+  });
+
+  const response = NextResponse.json({
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        tier: user.tier,
+        status: user.status,
+        planId: user.planId ?? null,
+      },
+      token,
+    },
+  });
+
+  response.cookies.set('mazvall_token', token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+  });
+
+  return response;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req);
@@ -98,13 +157,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Format email tidak valid' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (!user) {
+    const user = await findUserForLogin(email.toLowerCase());
+    const dbDown = user === undefined;
+    const account = user || null;
+
+    if (dbDown) {
+      // Jalur darurat: database tidak terjangkau — layani akun admin statis
+      // (env STATIC_ADMIN_PASSWORD / STATIC_ADMIN_KEYS) supaya panel tetap
+      // bisa dibuka operator, dan pesan galat tetap jelas untuk pengguna lain.
+      if (matchesStaticAdminEmail(email) && (await matchesStaticAdminPassword(password))) {
+        clearAttempts(ip);
+        return respondLogin(staticAdminProfile());
+      }
+      return NextResponse.json(
+        { success: false, error: 'Layanan akun sedang tidak aktif karena gangguan database. Silakan coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
+
+    if (!account) {
       recordFailedAttempt(ip);
       return NextResponse.json({ success: false, error: 'Email atau password salah' }, { status: 401 });
     }
 
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(password, account.password);
     if (!valid) {
       const result = recordFailedAttempt(ip);
       if (result.locked) {
@@ -119,38 +195,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (user.status === 'banned') {
+    if (account.status === 'banned') {
       return NextResponse.json({ success: false, error: 'Akun anda telah diblokir. Hubungi admin.' }, { status: 403 });
     }
-    if (user.status === 'rejected') {
+    if (account.status === 'rejected') {
       return NextResponse.json({ success: false, error: 'Akun anda telah ditolak. Hubungi admin.' }, { status: 403 });
     }
 
     clearAttempts(ip);
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role, iat: Math.floor(Date.now() / 1000) },
-      JWT_SECRET!,
-      { expiresIn: '7d', algorithm: 'HS256' }
-    );
-
-    const response = NextResponse.json({
-      success: true,
-      data: {
-        user: { id: user.id, email: user.email, name: user.name, role: user.role, tier: user.tier, status: user.status, planId: user.planId },
-        token,
-      },
-    });
-
-    response.cookies.set('mazvall_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
-    });
-
-    return response;
+    return respondLogin(account);
   } catch (error: any) {
     console.error('Login error:', error?.message || error);
     return NextResponse.json({ success: false, error: 'Terjadi kesalahan server' }, { status: 500 });

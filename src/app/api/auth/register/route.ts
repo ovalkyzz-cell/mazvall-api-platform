@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { signUserToken } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { isDbUnavailable } from '@/lib/staticAuth';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -63,6 +64,29 @@ function sanitizeInput(input: string): string {
   return input.replace(/[<>]/g, '').trim();
 }
 
+// undefined = database mati; null = email belum terdaftar
+async function findExistingUser(email: string) {
+  try {
+    return await prisma.user.findUnique({ where: { email } });
+  } catch (err) {
+    if (!isDbUnavailable(err)) throw err;
+    console.error('Register: database tidak terjangkau:', (err as any)?.message || err);
+    return undefined;
+  }
+}
+
+async function createUserRecord(email: string, name: string, hashed: string) {
+  try {
+    return await prisma.user.create({
+      data: { email, name, password: hashed, role: 'user', tier: 'free', status: 'pending' },
+    });
+  } catch (err) {
+    if (!isDbUnavailable(err)) throw err;
+    console.error('Register: database tidak terjangkau:', (err as any)?.message || err);
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req);
@@ -110,21 +134,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Domain email tidak diizinkan' }, { status: 400 });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    const existing = await findExistingUser(email.toLowerCase());
+    if (existing === undefined) {
+      return NextResponse.json(
+        { success: false, error: 'Pendaftaran belum dapat diproses karena layanan database sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
     if (existing) {
       return NextResponse.json({ success: false, error: 'Email sudah terdaftar' }, { status: 409 });
     }
 
     const hashed = await bcrypt.hash(password, 14);
-    const user = await prisma.user.create({
-      data: { email: email.toLowerCase(), name: sanitizedName, password: hashed, role: 'user', tier: 'free', status: 'pending' },
-    });
+    const user = await createUserRecord(email.toLowerCase(), sanitizedName, hashed);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Pendaftaran belum dapat diproses karena layanan database sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role, iat: Math.floor(Date.now() / 1000) },
-      JWT_SECRET!,
-      { expiresIn: '7d', algorithm: 'HS256' }
-    );
+    const token = signUserToken({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tier: user.tier,
+      status: user.status,
+    });
 
     const response = NextResponse.json({
       success: true,

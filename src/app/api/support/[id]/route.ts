@@ -18,6 +18,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const reply = await addTicketReply(params.id, user.userId, message, user.role === 'admin');
+    if (!reply) {
+      return NextResponse.json(
+        { success: false, error: 'Layanan tiket sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
     return successResponse({ reply }, 'Reply sent');
   } catch {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
+import { isDbUnavailable } from '@/lib/staticAuth';
 
 export async function GET(req: NextRequest) {
   try {
