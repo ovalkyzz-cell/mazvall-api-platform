@@ -363,7 +363,12 @@ function reviveDates(model: ModelName, row: Rec): Rec {
 
 function relatedRows(doc: StateDoc, model: ModelName, row: Rec, rel: Relation): Rec[] {
   const key = MODELS[rel.model].collection;
-  return doc[key].filter((candidate) => candidate[rel.fk] === row.id);
+  if (rel.many) {
+    // relasi one-to-many: pihak anak yang menyimpan foreign key
+    return doc[key].filter((candidate) => candidate[rel.fk] === row.id);
+  }
+  // relasi many-to-one/one-to-one: baris induk yang menyimpan foreign key
+  return doc[key].filter((candidate) => candidate.id === row[rel.fk]);
 }
 
 function projectRow(
