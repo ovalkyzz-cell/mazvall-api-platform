@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
 
     if (owner.role !== 'admin' && endpoint) {
       let featureAccess = 'all';
-      if (user.planId) {
-        const plan = await prisma.plan.findUnique({ where: { id: user.planId }, select: { featureAccess: true } });
+      if (owner.planId) {
+        const plan = await prisma.plan.findUnique({ where: { id: owner.planId }, select: { featureAccess: true } });
         if (plan) featureAccess = plan.featureAccess;
       } else {
         const tierFeatureAccess: Record<string, string> = {
