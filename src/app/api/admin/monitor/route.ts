@@ -86,6 +86,29 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
     if (error.message === 'Forbidden') return authResponse('Forbidden', 403);
+    if (isDbUnavailable(error)) {
+      // database mati → kirim data kosong agar halaman monitor tetap terbuka
+      return successResponse({
+        overview: {
+          totalUsers: 0,
+          activeUsers: 0,
+          pendingUsers: 0,
+          bannedUsers: 0,
+          totalKeys: 0,
+          activeKeys: 0,
+          todayRequests: 0,
+          hourRequests: 0,
+          minRequests: 0,
+          rps: 0,
+        },
+        recentLogs: [],
+        topUsers: [],
+        tierDistribution: [],
+        statusDistribution: [],
+        degraded: true,
+        timestamp: new Date().toISOString(),
+      });
+    }
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, authResponse, successResponse } from "@/lib/auth";
+import { isDbUnavailable } from "@/lib/staticAuth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,6 +16,10 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
+    if (isDbUnavailable(error)) {
+      // database mati → daftar kosong agar halaman plans tetap terbuka
+      return successResponse([]);
+    }
     return successResponse(null, "Gagal mengambil data plans");
   }
 }
@@ -58,6 +63,9 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
+    if (isDbUnavailable(error)) {
+      return successResponse(null, "Database sedang tidak aktif — plan gagal disimpan. Coba lagi nanti.");
+    }
     return successResponse(null, "Gagal membuat plan");
   }
 }
@@ -124,6 +132,9 @@ export async function PUT(req: NextRequest) {
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
+    if (isDbUnavailable(error)) {
+      return successResponse(null, "Database sedang tidak aktif — perubahan plan gagal disimpan. Coba lagi nanti.");
+    }
     return successResponse(null, "Gagal memperbarui plan");
   }
 }
