@@ -88,7 +88,7 @@ interface LoginUserShape {
   planId?: string | null;
 }
 
-function respondLogin(user: LoginUserShape) {
+function respondLogin(user: LoginUserShape | Record<string, any>) {
   const token = signUserToken({
     id: user.id,
     email: user.email,

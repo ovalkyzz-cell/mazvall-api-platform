@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pingStateStorage } from '@/lib/stateStore';
 
 export async function GET() {
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    return NextResponse.json({ status: 'ok', database: 'connected' });
+    const ping = await pingStateStorage();
+    if (!ping.ok) {
+      return NextResponse.json(
+        { status: 'error', storage: 'state-file', error: ping.error || 'state storage tidak terjangkau' },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ status: 'ok', storage: 'state-file', source: ping.source });
   } catch (error: any) {
-    return NextResponse.json({ status: 'error', database: 'disconnected', error: error?.message }, { status: 500 });
+    return NextResponse.json(
+      { status: 'error', storage: 'state-file', error: error?.message },
+      { status: 500 }
+    );
   }
 }

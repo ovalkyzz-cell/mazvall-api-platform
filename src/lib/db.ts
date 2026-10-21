@@ -28,6 +28,8 @@ async function safeRead<T>(label: string, run: () => Promise<T>, fallback: T): P
   try {
     return await run();
   } catch (err) {
+    // galat logika (P2002 unik, P2025 tidak ada) harus tetap sampai ke pemanggil
+    if (!isDbUnavailable(err)) throw err;
     warnOnce(label, err);
     return fallback;
   }
@@ -37,6 +39,7 @@ async function safeWrite<T>(label: string, run: () => Promise<T>): Promise<T | n
   try {
     return await run();
   } catch (err) {
+    if (!isDbUnavailable(err)) throw err;
     warnOnce(label, err);
     return null;
   }

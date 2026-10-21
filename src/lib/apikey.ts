@@ -95,7 +95,8 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
               },
             });
           }
-          return { user: { userId: decoded.userId, email: decoded.email, role: 'admin', tier: 'admin', planId: null, keyId: existingKey.id }, keyId: existingKey.id };
+          const adminKey = existingKey!;
+          return { user: { userId: decoded.userId, email: decoded.email, role: 'admin', tier: 'admin', planId: null, keyId: adminKey.id }, keyId: adminKey.id };
         }
 
         const dbUser = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { id: true, email: true, role: true, tier: true, status: true, planId: true } });
@@ -114,7 +115,8 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
             },
           });
         }
-        return { user: { userId: dbUser.id, email: dbUser.email, role: dbUser.role, tier: dbUser.tier, planId: dbUser.planId, keyId: existingKey.id }, keyId: existingKey.id };
+        const defaultKey = existingKey!;
+        return { user: { userId: dbUser.id, email: dbUser.email, role: dbUser.role, tier: dbUser.tier, planId: dbUser.planId, keyId: defaultKey.id }, keyId: defaultKey.id };
       } catch {}
     }
     return null;

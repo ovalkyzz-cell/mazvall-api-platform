@@ -146,7 +146,15 @@ export async function POST(req: NextRequest) {
     }
 
     const hashed = await bcrypt.hash(password, 14);
-    const user = await createUserRecord(email.toLowerCase(), sanitizedName, hashed);
+    let user: any;
+    try {
+      user = await createUserRecord(email.toLowerCase(), sanitizedName, hashed);
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        return NextResponse.json({ success: false, error: 'Email sudah terdaftar' }, { status: 409 });
+      }
+      throw err;
+    }
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Pendaftaran belum dapat diproses karena layanan database sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },

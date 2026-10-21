@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'jsonwebtoken'],
+    serverComponentsExternalPackages: ['bcryptjs', 'jsonwebtoken'],
   },
   images: {
     remotePatterns: [
