@@ -164,10 +164,14 @@ export async function POST(req: NextRequest) {
     if (dbDown) {
       // Jalur darurat: database tidak terjangkau — layani akun admin statis
       // (env STATIC_ADMIN_PASSWORD / STATIC_ADMIN_KEYS) supaya panel tetap
-      // bisa dibuka operator, dan pesan galat tetap jelas untuk pengguna lain.
-      if (matchesStaticAdminEmail(email) && (await matchesStaticAdminPassword(password))) {
-        clearAttempts(ip);
-        return respondLogin(staticAdminProfile());
+      // bisa dibuka operator; selain itu pesan galat tetap jelas.
+      if (matchesStaticAdminEmail(email)) {
+        if (await matchesStaticAdminPassword(password)) {
+          clearAttempts(ip);
+          return respondLogin(staticAdminProfile());
+        }
+        recordFailedAttempt(ip);
+        return NextResponse.json({ success: false, error: 'Email atau password salah' }, { status: 401 });
       }
       return NextResponse.json(
         { success: false, error: 'Layanan akun sedang tidak aktif karena gangguan database. Silakan coba lagi beberapa saat lagi.' },
@@ -176,6 +180,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!account) {
+      // akun admin statis tetap dilayani walau database hidup tetapi belum
+      // memiliki baris pengguna tersebut (mis. setelah restore gagal)
+      if (matchesStaticAdminEmail(email) && (await matchesStaticAdminPassword(password))) {
+        clearAttempts(ip);
+        return respondLogin(staticAdminProfile());
+      }
       recordFailedAttempt(ip);
       return NextResponse.json({ success: false, error: 'Email atau password salah' }, { status: 401 });
     }
