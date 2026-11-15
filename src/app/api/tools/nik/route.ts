@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiKey, checkRateLimit, logApiUsage } from '@/lib/apikey';
+import { guardApiKey, logApiUsage } from '@/lib/apikey';
 
 const NUSANTARA = 'https://nusantara.clowdlab.com/api/v1/nik/parse';
 const EMSIFA = 'https://www.emsifa.com/api-wilayah-indonesia/api';
@@ -80,16 +80,9 @@ async function parseNikLocal(nik: string, referenceYear?: number, centuryOverrid
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await validateApiKey(req);
-    if (!auth) {
-      return NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint: '/api/tools/nik' }, { status: 401 });
-    }
-
-    const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role, auth.user.tier);
-    if (!rateCheck.allowed) {
-      return NextResponse.json({ success: false, error: 'Batas rate limit tercapai', data: { limit: rateCheck.limit, remaining: rateCheck.remaining } }, { status: 429 });
-    }
-
+    const guard = await guardApiKey(req, req.nextUrl.pathname);
+    if ('response' in guard) return guard.response;
+    const auth = guard.auth;
     let body: any = {};
     try {
       body = await req.json();

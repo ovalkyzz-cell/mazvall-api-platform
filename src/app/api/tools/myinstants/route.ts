@@ -1,28 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiKey, checkRateLimit, logApiUsage } from '@/lib/apikey';
+import { guardApiKey, logApiUsage } from '@/lib/apikey';
 
 const BASE = 'https://myinstants-api.vercel.app';
 
 async function fetchMyInstants(path: string): Promise<any> {
-  const res = await fetch(`${BASE}${path}`, {
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`MyInstants API error: ${res.status}`);
-  return res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(15000) });
+  } catch (error: any) {
+    // jaringan/timeout ke upstream — bukan kesalahan server kita
+    const err: any = new Error(error?.message || 'Upstream tidak merespons');
+    err.upstream = true;
+    throw err;
+  }
+  if (!res.ok) {
+    const err: any = new Error(`Upstream membalas HTTP ${res.status}`);
+    err.upstream = true;
+    err.status = res.status;
+    throw err;
+  }
+  try {
+    return await res.json();
+  } catch {
+    const err: any = new Error('Upstream mengirim respons yang tidak valid');
+    err.upstream = true;
+    throw err;
+  }
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await validateApiKey(req);
-    if (!auth) {
-      return NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint: '/api/tools/myinstants' }, { status: 401 });
-    }
-
-    const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role, auth.user.tier);
-    if (!rateCheck.allowed) {
-      return NextResponse.json({ success: false, error: 'Batas rate limit tercapai', data: { limit: rateCheck.limit, remaining: rateCheck.remaining } }, { status: 429 });
-    }
-
+    const guard = await guardApiKey(req, req.nextUrl.pathname);
+    if ('response' in guard) return guard.response;
+    const auth = guard.auth;
     const params = new URLSearchParams(req.nextUrl.searchParams);
     const action = params.get('action') || 'trending';
     const q = params.get('q');
@@ -95,6 +105,15 @@ export async function GET(req: NextRequest) {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error: any) {
+    // galat upstream: laporkan 502 dengan pesan ramah (dulu bocor jadi 500
+    // "MyInstants API error: 503")
+    if (error?.upstream) {
+      return NextResponse.json({
+        success: false,
+        error: `Layanan MyInstants sedang tidak tersedia${error?.status ? ` (HTTP ${error.status})` : ''}. Silakan coba lagi nanti.`,
+        endpoint: '/api/tools/myinstants',
+      }, { status: 502 });
+    }
     return NextResponse.json({ success: false, error: error?.message || 'Terjadi kesalahan server' }, { status: 500 });
   }
 }

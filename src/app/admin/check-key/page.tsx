@@ -76,8 +76,17 @@ export default function CheckKeyPage() {
       const res = await fetch(`/api/admin/check-key?key=${encodeURIComponent(searchKey.trim())}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (data.success) setResult(data.data);
+      const data = await res.json().catch(() => null);
+      if (data?.success) {
+        setResult(data.data);
+      } else {
+        setResult({
+          found: false,
+          key: searchKey.trim(),
+          status: "inactive",
+          message: data?.error || `Gagal mengecek key (HTTP ${res.status})`,
+        });
+      }
     } catch {
       setResult({ found: false, key: searchKey, status: "inactive", message: "Gagal menghubungi server" });
     } finally {
@@ -238,7 +247,7 @@ export default function CheckKeyPage() {
                       value={result.details.expiresAt ? new Date(result.details.expiresAt).toLocaleDateString("id-ID") : "Tidak ada"}
                       highlight={result.details.expired ? "red" : undefined}
                     />
-                    <InfoCard icon={Clock} label="Dibuat" value={new Date(result.details.createdAt).toLocaleDateString("id-ID")} />
+                    <InfoCard icon={Clock} label="Dibuat" value={result.details.createdAt ? new Date(result.details.createdAt).toLocaleDateString("id-ID") : "Key statis"} />
                     <InfoCard
                       icon={Clock}
                       label="Terakhir Dipakai"

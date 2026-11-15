@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateApiKeyString } from '@/lib/db';
+import { FREE_AI_ENDPOINTS, hasAccess, resolveFeatureAccess } from '@/lib/featureAccess';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -51,6 +52,39 @@ export function isDbUnreachable(): boolean {
 
 function markDbUnreachable() {
   dbUnreachableUntil = Date.now() + DB_DOWN_GRACE_MS;
+}
+
+/* Kandidat lookup key dari input user.
+
+   Dua bentuk yang diterima (sama seperti jalur /o/ dan /open/):
+   - lengkap  : MVAL-xxxx  (boleh huruf kecil)
+   - pendek   : xxxx       (tanpa awalan, otomatis diberi awalan MVAL-)
+
+   Mengembalikan [] bila format tidak sah supaya pemanggil menolak cepat
+   tanpa perlu membaca penyimpanan. */
+export function apiKeyCandidates(rawKey: string): string[] {
+  const t = String(rawKey || '').trim();
+  if (/^mval-[a-z0-9_-]{4,60}$/i.test(t)) return [t];
+  if (/^[a-z0-9_-]{8,60}$/i.test(t)) return [`MVAL-${t}`];
+  return [];
+}
+
+/** Lookup key di penyimpanan; case-insensitive, mendukung bentuk pendek. */
+export async function findStoredApiKey(rawKey: string) {
+  const candidates = apiKeyCandidates(rawKey);
+  if (!candidates.length) return null;
+  return prisma.apiKey.findFirst({
+    where: {
+      OR: candidates.map((value) => ({ key: { equals: value, mode: 'insensitive' as const } })),
+    },
+    include: { user: { select: { id: true, name: true, email: true, role: true, tier: true, status: true, planId: true } } },
+  });
+}
+
+export function isKeyExpired(key: { expiresAt?: Date | string | null }): boolean {
+  if (!key.expiresAt) return false;
+  const at = new Date(key.expiresAt).getTime();
+  return Number.isFinite(at) && at < Date.now();
 }
 
 export function staticAdminAuth(apiKey: string): ApiKeyUser | null {
@@ -127,17 +161,19 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
   const staticAuth = staticAdminAuth(apiKey);
   if (staticAuth) return { user: staticAuth, keyId: staticAuth.keyId };
 
-  if (!apiKey.startsWith('MVAL-') || apiKey.length < 10 || apiKey.length > 50) {
-    return null;
-  }
+  // Bentuk key fleksibel: MVAL-xxxx / mval-xxxx / xxxx (tanpa awalan) — sama
+  // seperti jalur /o/ supaya key yang sama berlaku di semua endpoint.
+  const candidates = apiKeyCandidates(apiKey);
+  if (!candidates.length) return null;
 
   try {
-    const key = await prisma.apiKey.findUnique({
-      where: { key: apiKey },
+    const key = await prisma.apiKey.findFirst({
+      where: { OR: candidates.map((value) => ({ key: { equals: value, mode: 'insensitive' as const } })) },
       include: { user: { select: { id: true, email: true, role: true, tier: true, status: true, planId: true } } },
     });
 
     if (!key || !key.active) return null;
+    if (isKeyExpired(key)) return null;
     if (!key.user) {
       // key admin statis tidak punya baris pengguna — tetap sah, jangan
       // diperlakukan sebagai galat database
@@ -160,6 +196,88 @@ export async function validateApiKey(req: NextRequest): Promise<{ user: ApiKeyUs
     markDbUnreachable();
     return null;
   }
+}
+
+/* Penjaga bersama untuk SEMUA endpoint ber-key.
+
+   Rute yang memanggil validateApiKey() langsung dulu hanya mengecek key lalu
+   rate limit — cek paket (featureAccess) dan batas free-tier AI dilewati, sehingga
+   user gratis bisa memakai endpoint berbayar (mis. am-verif-send). Fungsi ini
+   menyatukan seluruh rantai supaya tidak ada rute yang luput. */
+export type GuardResult = { auth: { user: ApiKeyUser; keyId: string } } | { response: NextResponse };
+
+export async function guardApiKey(req: NextRequest, endpoint: string): Promise<GuardResult> {
+  const auth = await validateApiKey(req);
+  if (!auth) {
+    // Penyimpanan mati -> key tidak bisa diverifikasi. Bedakan dari key yang
+    // memang salah supaya pelanggan tidak disuruh mengganti key yang sah.
+    if (isDbUnreachable()) {
+      return {
+        response: NextResponse.json(
+          {
+            success: false,
+            error: 'Database API sedang tidak terjangkau. Key statis (STATIC_ADMIN_KEYS) tetap dilayani; key lain menyusul setelah database pulih.',
+            endpoint,
+          },
+          { status: 503 }
+        ),
+      };
+    }
+    return {
+      response: NextResponse.json(
+        { success: false, error: 'API key tidak valid atau tidak aktif', endpoint },
+        { status: 401 }
+      ),
+    };
+  }
+
+  if (auth.user.role !== 'admin') {
+    const featureAccess = await resolveFeatureAccess(auth.user);
+    if (!hasAccess(featureAccess, endpoint)) {
+      return {
+        response: NextResponse.json(
+          {
+            success: false,
+            error: 'Paket kamu tidak memiliki akses ke endpoint ini. Upgrade ke paket berbayar untuk akses penuh.',
+            endpoint,
+          },
+          { status: 403 }
+        ),
+      };
+    }
+
+    const tier = auth.user.tier || 'free';
+    if ((tier === 'free' || tier === 'Gratis') && !auth.user.planId && endpoint.startsWith('/api/ai/') && !FREE_AI_ENDPOINTS.includes(endpoint)) {
+      return {
+        response: NextResponse.json(
+          {
+            success: false,
+            error: 'Free tier hanya bisa akses: chatgpt, gemini, deepseekr1. Upgrade ke paket berbayar untuk akses semua AI.',
+            endpoint,
+            available_for_free: FREE_AI_ENDPOINTS,
+          },
+          { status: 403 }
+        ),
+      };
+    }
+  }
+
+  const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role, auth.user.tier);
+  if (!rateCheck.allowed) {
+    return {
+      response: NextResponse.json(
+        {
+          success: false,
+          error: 'Batas rate limit tercapai',
+          data: { limit: rateCheck.limit, remaining: rateCheck.remaining },
+          endpoint,
+        },
+        { status: 429 }
+      ),
+    };
+  }
+
+  return { auth: { user: auth.user, keyId: auth.keyId } };
 }
 
 export async function checkRateLimit(keyId: string, userId: string, userRole?: string, userTier?: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {

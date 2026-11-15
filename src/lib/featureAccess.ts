@@ -231,3 +231,45 @@ export function hasAccess(planFeatureAccess: string, endpointPath: string): bool
   const allowed: string[] = planFeatureAccess.split(',').map(s => s.trim());
   return allowed.includes(category);
 }
+
+/* Endpoint AI yang boleh dipakai free tier, berdasarkan path yang diminta user
+   (bukan path upstream). Beberapa route sengaja dialihkan ke upstream lain,
+   mis. /api/ai/chatgpt -> upstream gptoss120b, jadi pengecekan wajib memakai
+   path asli supaya route alias seperti /api/ai/copilot tidak ikut terbuka. */
+export const FREE_AI_ENDPOINTS = [
+  '/api/ai/chatgpt',
+  '/api/ai/gptoss120b',
+  '/api/ai/gemini',
+  '/api/ai/deepseekr1',
+];
+
+/* Daftar fitur yang boleh diakses sebuah user untuk sebuah endpoint.
+   Satu sumber kebenaran: dipakai authenticateRequest() maupun rute yang
+   memanggil validateApiKey() langsung, supaya paket berbayar tidak bisa
+   dilewati lewat rute yang tidak ikut memeriksa. */
+export async function resolveFeatureAccess(user: {
+  role?: string;
+  planId?: string | null;
+  tier?: string;
+}): Promise<string> {
+  if (user.role === 'admin') return 'all';
+  if (user.planId) {
+    try {
+      const { prisma } = await import('@/lib/prisma');
+      const plan = await prisma.plan.findUnique({ where: { id: user.planId }, select: { featureAccess: true } });
+      // paket hilang / gagal dibaca saat permintaan berlangsung: user sudah
+      // berbayar, jangan turunkan haknya diam-diam (perilaku lama dipertahankan)
+      return plan?.featureAccess || 'all';
+    } catch {
+      return 'all';
+    }
+  }
+  const tierFeatureAccess: Record<string, string> = {
+    free: 'ai,tempmail',
+    Gratis: 'ai,tempmail',
+    developer: 'all',
+    enterprise: 'all',
+    admin: 'all',
+  };
+  return tierFeatureAccess[user.tier || 'free'] || 'ai,tempmail';
+}

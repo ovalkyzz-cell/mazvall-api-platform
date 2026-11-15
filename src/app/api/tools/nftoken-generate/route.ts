@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiKey, checkRateLimit, logApiUsage, isDbUnreachable } from '@/lib/apikey';
-import { hasAccess } from '@/lib/featureAccess';
-import { prisma } from '@/lib/prisma';
+import { guardApiKey, logApiUsage } from '@/lib/apikey';
 
 const NFTOKEN_BASE = 'https://nftoken.zone.id/api/auto-generate';
 const SERVICE_PATH = '/tools/nftoken-generate';
@@ -12,36 +10,9 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await validateApiKey(req);
-    if (!auth) {
-      if (isDbUnreachable()) {
-        return NextResponse.json({ success: false, error: 'Database API sedang tidak terjangkau.', endpoint: '/api/tools/nftoken-generate' }, { status: 503 });
-      }
-      return NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint: '/api/tools/nftoken-generate' }, { status: 401 });
-    }
-
-    if (auth.user.role !== 'admin') {
-      let featureAccess = 'all';
-      if (auth.user.planId) {
-        try {
-          const plan = await prisma.plan.findUnique({ where: { id: auth.user.planId }, select: { featureAccess: true } });
-          if (plan) featureAccess = plan.featureAccess;
-        } catch {
-          featureAccess = 'all';
-        }
-      } else {
-        featureAccess = 'ai,tempmail';
-      }
-      if (!hasAccess(featureAccess, SERVICE_PATH)) {
-        return NextResponse.json({ success: false, error: 'Paket kamu tidak memiliki akses ke endpoint ini. Upgrade ke paket berbayar.', endpoint: '/api/tools/nftoken-generate' }, { status: 403 });
-      }
-    }
-
-    const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role);
-    if (!rateCheck.allowed) {
-      return NextResponse.json({ success: false, error: 'Batas rate limit tercapai', endpoint: '/api/tools/nftoken-generate' }, { status: 429 });
-    }
-
+    const guard = await guardApiKey(req, req.nextUrl.pathname);
+    if ('response' in guard) return guard.response;
+    const auth = guard.auth;
     const countParam = req.nextUrl.searchParams.get('count');
     const count = Math.min(Math.max(parseInt(countParam || '1') || 1, 1), 10);
 

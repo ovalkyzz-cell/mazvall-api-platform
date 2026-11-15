@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiKey, checkRateLimit, logApiUsage } from '@/lib/apikey';
+import { guardApiKey, logApiUsage } from '@/lib/apikey';
 
 const TRACKINGMORE_API_KEY = process.env.TRACKINGMORE_API_KEY || '';
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await validateApiKey(req);
-    if (!auth) {
-      return NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint: '/api/tools/tracking' }, { status: 401 });
-    }
-
-    const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role, auth.user.tier);
-    if (!rateCheck.allowed) {
-      return NextResponse.json({ success: false, error: 'Batas rate limit tercapai', data: { limit: rateCheck.limit, remaining: rateCheck.remaining } }, { status: 429 });
-    }
-
+    const guard = await guardApiKey(req, req.nextUrl.pathname);
+    if ('response' in guard) return guard.response;
+    const auth = guard.auth;
     const params = new URLSearchParams(req.nextUrl.searchParams);
     const trackingNumber = params.get('tracking') || params.get('resi');
     const courier = params.get('courier') || params.get('kurir') || 'jne';

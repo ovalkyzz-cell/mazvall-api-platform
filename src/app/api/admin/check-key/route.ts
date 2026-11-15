@@ -1,66 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
+import { findStoredApiKey, isKeyExpired, staticAdminAuth } from '@/lib/apikey';
+import { isDbUnavailable } from '@/lib/staticAuth';
+
+function notFound(key: string, message: string) {
+  return NextResponse.json({
+    success: true,
+    data: { key, found: false, status: 'inactive', message },
+  });
+}
 
 export async function GET(req: NextRequest) {
   try {
-    const admin = requireAdmin(req);
-    const key = req.nextUrl.searchParams.get('key');
+    requireAdmin(req);
+    const key = (req.nextUrl.searchParams.get('key') || '').trim();
 
     if (!key) {
       return NextResponse.json({ success: false, error: 'Parameter key diperlukan' }, { status: 400 });
     }
 
-    const apiKey = await prisma.apiKey.findUnique({
-      where: { key },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            tier: true,
-            status: true,
-          },
-        },
-      },
-    });
-
-    if (!apiKey) {
+    // Key statis admin tidak tersimpan di penyimpanan — tetap dilaporkan aktif
+    // (dulu selalu "Key sudah tidak aktif" karena lookup database gagal).
+    if (staticAdminAuth(key)) {
+      const usageToday = await safeCount(key);
       return NextResponse.json({
         success: true,
         data: {
           key,
-          found: false,
-          status: 'inactive',
-          message: 'Key sudah tidak aktif',
+          found: true,
+          status: 'active',
+          message: 'Key masih aktif (key statis admin)',
+          details: {
+            name: 'Static Admin Key',
+            rateLimit: 999999,
+            active: true,
+            expired: false,
+            expiresAt: null,
+            createdAt: null,
+            lastUsedAt: null,
+            usageToday,
+            user: {
+              name: 'Admin Mazvall',
+              email: 'static-admin@localhost',
+              role: 'admin',
+              tier: 'admin',
+              status: 'active',
+            },
+          },
         },
       });
     }
 
-    const isActive = apiKey.active && apiKey.user.status === 'active';
-    const isExpired = apiKey.expiresAt ? new Date(apiKey.expiresAt) < new Date() : false;
+    const apiKey = await findStoredApiKey(key);
+
+    if (!apiKey) {
+      return notFound(key, 'Key sudah tidak aktif');
+    }
+
+    const owner = apiKey.user;
+    const isExpired = isKeyExpired(apiKey);
+    const isActive = !!apiKey.active && !!owner && owner.status === 'active' && !isExpired;
 
     let statusText = '';
     if (!apiKey.active) {
       statusText = 'Key sudah tidak aktif (revoked)';
     } else if (isExpired) {
       statusText = 'Key sudah tidak aktif (expired)';
-    } else if (apiKey.user.status !== 'active') {
-      statusText = `Key sudah tidak aktif (user ${apiKey.user.status})`;
+    } else if (!owner) {
+      statusText = 'Key sudah tidak aktif (pemilik key tidak ditemukan)';
+    } else if (owner.status !== 'active') {
+      statusText = `Key sudah tidak aktif (user ${owner.status})`;
     } else {
       statusText = 'Key masih aktif';
     }
 
-    const usageToday = await prisma.usageLog.count({
-      where: {
-        apiKeyId: apiKey.id,
-        createdAt: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-        },
-      },
-    });
+    const usageToday = await safeCount(apiKey.id);
 
     return NextResponse.json({
       success: true,
@@ -74,16 +89,16 @@ export async function GET(req: NextRequest) {
           rateLimit: apiKey.rateLimit,
           active: apiKey.active,
           expired: isExpired,
-          expiresAt: apiKey.expiresAt,
-          createdAt: apiKey.createdAt,
-          lastUsedAt: apiKey.lastUsedAt,
+          expiresAt: apiKey.expiresAt ?? null,
+          createdAt: apiKey.createdAt ?? null,
+          lastUsedAt: apiKey.lastUsedAt ?? null,
           usageToday,
           user: {
-            name: apiKey.user.name,
-            email: apiKey.user.email,
-            role: apiKey.user.role,
-            tier: apiKey.user.tier,
-            status: apiKey.user.status,
+            name: owner?.name ?? '-',
+            email: owner?.email ?? '-',
+            role: owner?.role ?? '-',
+            tier: owner?.tier ?? '-',
+            status: owner?.status ?? 'missing',
           },
         },
       },
@@ -91,6 +106,22 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     if (error.message === 'Unauthorized') return authResponse('Unauthorized');
     if (error.message === 'Forbidden') return authResponse('Forbidden', 403);
+    if (isDbUnavailable(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Penyimpanan API sedang tidak terjangkau. Coba lagi beberapa saat lagi.' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+async function safeCount(apiKeyId: string): Promise<number> {
+  try {
+    return await prisma.usageLog.count({
+      where: { apiKeyId, createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+    });
+  } catch {
+    return 0;
   }
 }

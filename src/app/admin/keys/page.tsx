@@ -14,7 +14,7 @@ interface AdminKey {
   active: boolean;
   rateLimit: number;
   createdAt: string;
-  user: { name: string; email: string };
+  user: { name: string; email: string } | null;
 }
 
 export default function AdminKeysPage() {
@@ -124,7 +124,7 @@ export default function AdminKeysPage() {
                 <tr key={k.id}>
                   <td><code className="text-xs font-mono text-neon-cyan/70">{k.key}</code></td>
                   <td className="text-sm">{k.name}</td>
-                  <td className="text-sm text-white/50">{k.user.name}</td>
+                  <td className="text-sm text-white/50">{k.user?.name || "-"}</td>
                   <td className="text-sm">{k.rateLimit} RPM</td>
                   <td><span className={`badge ${k.active ? "badge-open" : "badge-closed"}`}>{k.active ? "Active" : "Revoked"}</span></td>
                   <td className="text-xs text-white/30">{new Date(k.createdAt).toLocaleDateString()}</td>

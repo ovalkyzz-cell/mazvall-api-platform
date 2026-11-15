@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiKey, checkRateLimit, logApiUsage, isDbUnreachable, ApiKeyUser } from '@/lib/apikey';
-import { hasAccess } from '@/lib/featureAccess';
+import { guardApiKey, logApiUsage, ApiKeyUser } from '@/lib/apikey';
 import { getFreeApiHandler, isFreeApiAvailable } from '@/lib/freeApis';
-import { prisma } from '@/lib/prisma';
 
 const BASE_URL = 'https://api-faa.my.id/faa';
 
-// Endpoint AI yang boleh dipakai free tier, berdasarkan path yang diminta user
-// (bukan path upstream). Beberapa route sengaja dialihkan ke upstream lain,
-// misal /api/ai/chatgpt -> upstream gptoss120b, jadi pengecekan wajib memakai
-// path asli supaya route alias seperti /api/ai/copilot tidak ikut terbuka.
-const FREE_AI_ENDPOINTS = [
-  '/api/ai/chatgpt',
-  '/api/ai/gptoss120b',
-  '/api/ai/gemini',
-  '/api/ai/deepseekr1',
-];
 
 function resolveEndpoint(req: NextRequest, fallback: string): string {
   const path = (req.nextUrl.pathname || '').replace(/\/+$/, '');
@@ -191,81 +179,10 @@ export type AuthOk = { auth: { user: ApiKeyUser; keyId: string } };
 export type AuthResult = AuthOk | { response: NextResponse };
 
 export async function authenticateRequest(req: NextRequest, servicePath: string): Promise<AuthResult> {
-  const endpoint = resolveEndpoint(req, servicePath);
-  const auth = await validateApiKey(req);
-  if (!auth) {
-    // DB mati -> key tidak bisa diverifikasi. Bedakan dari key yang memang salah
-    // supaya pelanggan (bot Whatsap Indo) tidak disuruh mengganti key yang sah.
-    if (isDbUnreachable()) {
-      return {
-        response: NextResponse.json({
-          success: false,
-          error: 'Database API sedang tidak terjangkau. Key statis (STATIC_ADMIN_KEYS) tetap dilayani; key lain menyusul setelah database pulih.',
-          endpoint,
-        }, { status: 503 }),
-      };
-    }
-    return { response: NextResponse.json({ success: false, error: 'API key tidak valid atau tidak aktif', endpoint }, { status: 401 }) };
-  }
-
-  if (auth.user.role !== 'admin') {
-    let featureAccess = 'all';
-    if (auth.user.planId) {
-      try {
-        const plan = await prisma.plan.findUnique({ where: { id: auth.user.planId }, select: { featureAccess: true } });
-        if (plan) featureAccess = plan.featureAccess;
-      } catch {
-        // DB tak terjangkau — pakai default tier di bawah, jangan mematikan request
-        featureAccess = 'all';
-      }
-    } else {
-      const tier = auth.user.tier || 'free';
-      const tierFeatureAccess: Record<string, string> = {
-        free: 'ai,tempmail',
-        Gratis: 'ai,tempmail',
-        developer: 'all',
-        enterprise: 'all',
-      };
-      featureAccess = tierFeatureAccess[tier] || 'ai,tempmail';
-    }
-
-    if (!hasAccess(featureAccess, endpoint)) {
-      return {
-        response: NextResponse.json({
-          success: false,
-          error: 'Paket kamu tidak memiliki akses ke endpoint ini. Upgrade ke paket berbayar untuk akses penuh.',
-          endpoint,
-        }, { status: 403 }),
-      };
-    }
-
-    const tier = auth.user.tier || 'free';
-    if ((tier === 'free' || tier === 'Gratis') && !auth.user.planId) {
-      if (endpoint.startsWith('/api/ai/') && !FREE_AI_ENDPOINTS.includes(endpoint)) {
-        return {
-          response: NextResponse.json({
-            success: false,
-            error: 'Free tier hanya bisa akses: chatgpt, gemini, deepseekr1. Upgrade ke paket berbayar untuk akses semua AI.',
-            endpoint,
-            available_for_free: FREE_AI_ENDPOINTS,
-          }, { status: 403 }),
-        };
-      }
-    }
-  }
-
-  const rateCheck = await checkRateLimit(auth.keyId, auth.user.userId, auth.user.role, auth.user.tier);
-  if (!rateCheck.allowed) {
-    return {
-      response: NextResponse.json({
-        success: false,
-        error: 'Batas rate limit tercapai',
-        data: { limit: rateCheck.limit, remaining: rateCheck.remaining },
-      }, { status: 429 }),
-    };
-  }
-
-  return { auth: { user: auth.user, keyId: auth.keyId } };
+  // Seluruh rantai (key -> paket -> batas free-tier AI -> rate limit) kini
+  // ditangani guardApiKey() supaya identik dengan rute yang memanggil
+  // validateApiKey() langsung.
+  return guardApiKey(req, resolveEndpoint(req, servicePath));
 }
 
 // ringkasan penyebab kegagalan AI untuk pesan error pengguna (dan log bot):

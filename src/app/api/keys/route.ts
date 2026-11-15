@@ -22,7 +22,15 @@ export async function POST(req: NextRequest) {
     const { name } = await req.json();
     if (!name) return NextResponse.json({ success: false, error: 'Name required' }, { status: 400 });
 
-    const limits: Record<string, number> = { free: 10, developer: 60, enterprise: 300 };
+    // diselaraskan dengan rpm tier di getTierLimits() supaya kolom rateLimit
+    // yang tampil di dashboard tidak menyesatkan (dulu free dapat 10, tier 30)
+    const limits: Record<string, number> = {
+      free: 30,
+      Gratis: 30,
+      developer: 60,
+      enterprise: 300,
+      admin: 999999,
+    };
     let tier = user.tier || 'free';
     try {
       const dbUser = await findUserById(user.userId);
@@ -31,7 +39,7 @@ export async function POST(req: NextRequest) {
       // database mati — pakai tier dari klaim JWT
     }
 
-    const apiKey = await createApiKey(user.userId, name, limits[tier] || 10);
+    const apiKey = await createApiKey(user.userId, name, limits[tier] || limits.free);
     if (!apiKey) {
       return NextResponse.json(
         { success: false, error: 'Layanan penyimpanan API key sedang tidak aktif. Silakan coba lagi beberapa saat lagi.' },

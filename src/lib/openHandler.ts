@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkRateLimit } from '@/lib/apikey';
+import { checkRateLimit, isKeyExpired } from '@/lib/apikey';
 import {
   OPEN_KEY_NAME,
   OPEN_NAMESPACES,
@@ -50,6 +50,8 @@ async function authorize(rawKey: string) {
   if (!rawKey || hasPlaceholder(rawKey) || !isOpenKeyFormat(rawKey)) return null;
   const record = await findOpenKey(rawKey);
   if (!record || !record.active || record.user.status !== 'active') return null;
+  // key kedaluwarsa ditolak di semua jalur, termasuk /o/ dan /open/
+  if (isKeyExpired(record)) return null;
   return record;
 }
 

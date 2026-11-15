@@ -51,6 +51,7 @@ function staticOpenRecord(rawKey: string) {
     key: rawKey,
     name: 'Static Admin Key',
     active: true,
+    expiresAt: null,
     userId: 'static-admin',
     user: { status: 'active' as const, role: 'admin' as const },
   };
