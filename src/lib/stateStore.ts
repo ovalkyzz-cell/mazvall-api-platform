@@ -119,7 +119,13 @@ async function request(url: string, init: RequestInit): Promise<Response> {
   let lastErr: unknown = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      // no-store: jangan biarkan Data Cache Next menyimpan isi state
+      // (respons basi = dekripsi gagal / tulis di atas data lama)
+      return await fetch(url, {
+        ...init,
+        cache: 'no-store',
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
     } catch (err) {
       lastErr = err;
       await new Promise((r) => setTimeout(r, 250));
