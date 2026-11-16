@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-    const { userId, name, rateLimit } = await req.json();
+    const { userId, name, rateLimit } = await req.json().catch(() => ({}));
 
     if (!userId || !name) {
       return NextResponse.json({ success: false, error: 'userId and name required' }, { status: 400 });

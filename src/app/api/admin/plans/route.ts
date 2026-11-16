@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const admin = requireAdmin(req);
     if (!admin) return authResponse("Unauthorized");
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { name, slug, price, requestsPerDay, requestsPerMin, requestsPerHour, description, features, featureAccess, popular } = body;
 
     if (!name || !slug || !price || !description) {
@@ -92,7 +92,7 @@ export async function PUT(req: NextRequest) {
     const admin = requireAdmin(req);
     if (!admin) return authResponse("Unauthorized");
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { id, name, slug, price, requestsPerDay, requestsPerMin, requestsPerHour, description, features, featureAccess, popular, active, discountCode, discountType, discountValue, discountMaxUses, discountExpiresAt } = body;
 
     if (!id) {

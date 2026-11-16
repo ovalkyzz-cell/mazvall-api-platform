@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { email, password } = body;
 
     if (!email || !password) {

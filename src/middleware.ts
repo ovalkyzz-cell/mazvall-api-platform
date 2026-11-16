@@ -70,22 +70,47 @@ function checkAuthRateLimit(ip: string, maxRequests: number): { allowed: boolean
   return { allowed: true };
 }
 
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, apikey, Accept',
+  'Access-Control-Max-Age': '86400',
+  'Cross-Origin-Resource-Policy': 'cross-origin',
+};
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const userAgent = request.headers.get('user-agent') || '';
   const ip = getClientIp(request);
 
+  // Endpoint API terbuka untuk dipanggil lintas origin (tercantum "CORS Enabled"
+  // di /docs). Panel admin same-origin sengaja dikecualikan.
+  const isApiPath = pathname.startsWith('/api/');
+  const corsEnabled = isApiPath && !pathname.startsWith('/api/admin/');
+  const applyCors = (res: NextResponse) => {
+    if (!corsEnabled) return res;
+    for (const [key, value] of Object.entries(CORS_HEADERS)) res.headers.set(key, value);
+    return res;
+  };
+  const json = (body: unknown, init?: ResponseInit) => applyCors(NextResponse.json(body as never, init));
+
   if (isIpBlocked(ip)) {
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Akses ditolak.' },
       { status: 429 }
     );
   }
 
+  // Preflight CORS dijawab lebih awal: tidak melewati validasi header browser
+  // dan tidak menghabiskan kuota rate limit.
+  if (corsEnabled && request.method === 'OPTIONS') {
+    return new NextResponse(null, { status: 204, headers: { ...CORS_HEADERS } });
+  }
+
   const validation = isValidRequest(request);
   if (!validation.valid) {
     trackSuspiciousActivity(ip, 'invalid_user_agent');
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Request tidak valid.' },
       { status: 403 }
     );
@@ -93,12 +118,13 @@ export function middleware(request: NextRequest) {
 
   if (isBlockedBot(userAgent)) {
     trackSuspiciousActivity(ip, 'blocked_bot');
+    if (isApiPath) return json({ success: false, error: 'Akses ditolak.' }, { status: 403 });
     return new NextResponse('Forbidden', { status: 403 });
   }
 
   if (isBlockedPath(pathname)) {
     trackSuspiciousActivity(ip, 'blocked_path');
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Akses ditolak.' },
       { status: 403 }
     );
@@ -109,7 +135,7 @@ export function middleware(request: NextRequest) {
     for (const attack of attacks) {
       trackSuspiciousActivity(ip, attack);
     }
-    return NextResponse.json(
+    return json(
       { success: false, error: 'Request ditolak.' },
       { status: 403 }
     );
@@ -119,7 +145,7 @@ export function middleware(request: NextRequest) {
     const authRateCheck = checkAuthRateLimit(ip, pathname.includes('login') ? 5 : 3);
     if (!authRateCheck.allowed) {
       blockIp(ip, 15 * 60 * 1000, 'auth_rate_limit');
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Terlalu banyak percobaan.' },
         { status: 429 }
       );
@@ -133,7 +159,7 @@ export function middleware(request: NextRequest) {
   if (isRateLimitedPath) {
     if (!checkSlidingWindow(ip)) {
       trackSuspiciousActivity(ip, 'rate_limit');
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Rate limit tercapai.' },
         { status: 429, headers: { 'Retry-After': '60' } }
       );
@@ -141,7 +167,7 @@ export function middleware(request: NextRequest) {
 
     if (!checkTokenBucket(ip)) {
       trackSuspiciousActivity(ip, 'rapid_requests');
-      return NextResponse.json(
+      return json(
         { success: false, error: 'Terlalu banyak request.' },
         { status: 429, headers: { 'Retry-After': '30' } }
       );
@@ -168,7 +194,8 @@ export function middleware(request: NextRequest) {
   response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
   response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
   response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+  response.headers.set('Cross-Origin-Resource-Policy', corsEnabled ? 'cross-origin' : 'same-origin');
+  applyCors(response);
 
   return response;
 }

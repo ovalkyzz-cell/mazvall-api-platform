@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     const auth = guard.auth;
     let body: any = {};
     try {
-      body = await req.json();
+      body = await req.json().catch(() => ({}));
     } catch {
       body = {};
     }

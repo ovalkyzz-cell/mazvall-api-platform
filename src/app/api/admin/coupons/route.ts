@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const admin = requireAdmin(req);
     if (!admin) return authResponse("Unauthorized");
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { planId, discountType, discountValue, maxUses, expiresAt } = body;
 
     if (!discountType || !discountValue) {

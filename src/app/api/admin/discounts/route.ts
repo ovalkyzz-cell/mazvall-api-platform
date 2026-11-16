@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     const percentage = Number(body.percentage ?? 10);
     if (!Number.isFinite(percentage) || percentage < 1 || percentage > 100) {
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     requireAdmin(req);
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { id } = body;
 
     if (!id) {

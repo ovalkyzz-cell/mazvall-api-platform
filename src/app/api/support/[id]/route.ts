@@ -7,7 +7,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const { message } = await req.json();
+    const { message } = await req.json().catch(() => ({}));
     if (!message) {
       return NextResponse.json({ success: false, error: 'Message required' }, { status: 400 });
     }

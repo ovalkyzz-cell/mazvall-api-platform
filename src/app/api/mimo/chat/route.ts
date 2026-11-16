@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const guard = await guardApiKey(req, req.nextUrl.pathname);
     if ('response' in guard) return guard.response;
     const auth = guard.auth;
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { prompt, messages, model } = body;
 
     if (!prompt && (!messages || messages.length === 0)) {

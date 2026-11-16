@@ -5,7 +5,7 @@ import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const admin = requireAdmin(req);
-    const { tier, role, status } = await req.json();
+    const { tier, role, status } = await req.json().catch(() => ({}));
 
     const validStatuses = ['active', 'pending', 'rejected', 'banned'];
     if (status && !validStatuses.includes(status)) {

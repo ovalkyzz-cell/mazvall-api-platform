@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const admin = requireAdmin(req);
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     let writeFailed = false;
 

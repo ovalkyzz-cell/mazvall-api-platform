@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const user = authenticate(req);
     if (!user) return authResponse('Unauthorized');
 
-    const { name } = await req.json();
+    const { name } = await req.json().catch(() => ({}));
     if (!name) return NextResponse.json({ success: false, error: 'Name required' }, { status: 400 });
 
     // diselaraskan dengan rpm tier di getTierLimits() supaya kolom rateLimit

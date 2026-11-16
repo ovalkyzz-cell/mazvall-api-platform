@@ -7,7 +7,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const admin = requireAdmin(req);
 
-    const { message } = await req.json();
+    const { message } = await req.json().catch(() => ({}));
     if (!message) {
       return NextResponse.json({ success: false, error: 'Message required' }, { status: 400 });
     }
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const admin = requireAdmin(req);
-    const { status } = await req.json();
+    const { status } = await req.json().catch(() => ({}));
 
     if (!status || !['open', 'pending', 'closed'].includes(status)) {
       return NextResponse.json({ success: false, error: 'Invalid status' }, { status: 400 });
