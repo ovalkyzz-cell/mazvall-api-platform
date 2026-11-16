@@ -12,7 +12,7 @@ interface TicketReply {
   message: string;
   isAdmin: boolean;
   createdAt: string;
-  user: { name: string; role: string };
+  user: { name: string; role: string } | null;
 }
 
 interface Ticket {
@@ -23,7 +23,7 @@ interface Ticket {
   priority: string;
   category: string;
   createdAt: string;
-  user: { name: string; email: string };
+  user: { name: string; email: string } | null;
   _count: { replies: number };
   replies?: TicketReply[];
 }
@@ -113,8 +113,8 @@ export default function AdminTicketsPage() {
                     <span className={`badge ${selectedTicket.priority === "high" ? "badge-closed" : "badge-developer"}`}>{selectedTicket.priority}</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-white/30">
-                    <span>{selectedTicket.user.name}</span>
-                    <span>{selectedTicket.user.email}</span>
+                    <span>{selectedTicket.user?.name || "-"}</span>
+                    <span>{selectedTicket.user?.email || "-"}</span>
                     <span>{selectedTicket.category}</span>
                     <span>{new Date(selectedTicket.createdAt).toLocaleString()}</span>
                   </div>
@@ -140,7 +140,7 @@ export default function AdminTicketsPage() {
                 {selectedTicket.replies?.map((r) => (
                   <div key={r.id} className={`rounded-lg p-4 ${r.isAdmin ? "bg-neon-cyan/5 border border-neon-cyan/10 ml-6" : "bg-white/[0.02] mr-6"}`}>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium">{r.user.name}</span>
+                      <span className="text-xs font-medium">{r.user?.name || (r.isAdmin ? "Admin" : "-")}</span>
                       {r.isAdmin && <span className="badge badge-admin text-[10px]">Admin</span>}
                       <span className="text-xs text-white/20">{new Date(r.createdAt).toLocaleString()}</span>
                     </div>
@@ -182,8 +182,8 @@ export default function AdminTicketsPage() {
                       </div>
                       <p className="text-xs text-white/30 mb-1 line-clamp-1">{t.message}</p>
                       <div className="flex items-center gap-3 text-xs text-white/20">
-                        <span>{t.user.name}</span>
-                        <span>{t.user.email}</span>
+                        <span>{t.user?.name || "-"}</span>
+                        <span>{t.user?.email || "-"}</span>
                         <span>{t.category}</span>
                         <span>{t._count.replies} replies</span>
                         <span>{new Date(t.createdAt).toLocaleDateString()}</span>

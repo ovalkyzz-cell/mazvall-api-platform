@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, authResponse, successResponse } from "@/lib/auth";
+import { requireAdmin, authResponse, successResponse, errorResponse } from "@/lib/auth";
 
 export async function PATCH(
   req: NextRequest,
@@ -15,7 +15,7 @@ export async function PATCH(
 
     const coupon = await prisma.coupon.findUnique({ where: { id } });
     if (!coupon) {
-      return successResponse(null, "Coupon tidak ditemukan");
+      return errorResponse("Coupon tidak ditemukan", 404);
     }
 
     const updated = await prisma.coupon.update({
@@ -32,7 +32,7 @@ export async function PATCH(
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
-    return successResponse(null, "Gagal mengupdate coupon");
+    return errorResponse("Gagal mengupdate coupon", 500);
   }
 }
 
@@ -48,7 +48,7 @@ export async function DELETE(
 
     const coupon = await prisma.coupon.findUnique({ where: { id } });
     if (!coupon) {
-      return successResponse(null, "Coupon tidak ditemukan");
+      return errorResponse("Coupon tidak ditemukan", 404);
     }
 
     await prisma.coupon.delete({ where: { id } });
@@ -57,6 +57,6 @@ export async function DELETE(
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
-    return successResponse(null, "Gagal menghapus coupon");
+    return errorResponse("Gagal menghapus coupon", 500);
   }
 }

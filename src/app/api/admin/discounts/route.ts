@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, authResponse } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createDiscount, generateDiscountCode } from "@/lib/discount";
+import { staticAdminProfile } from "@/lib/staticAuth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,7 +17,16 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, data: discounts });
+    const fallbackCreator = staticAdminProfile();
+    const data = discounts.map((d: any) => ({
+      ...d,
+      creator: d.creator ?? {
+        name: fallbackCreator.name || "Admin",
+        email: fallbackCreator.email || "-",
+      },
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);

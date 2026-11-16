@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, authResponse, successResponse } from "@/lib/auth";
+import { requireAdmin, authResponse, successResponse, errorResponse } from "@/lib/auth";
 import { generateUniqueCouponCode } from "@/lib/coupon";
 
 export async function POST(req: NextRequest) {
@@ -12,18 +12,18 @@ export async function POST(req: NextRequest) {
     const { planId, discountType, discountValue, maxUses, expiresAt, count } = body;
 
     if (!discountType || !discountValue || !count) {
-      return successResponse(null, "discountType, discountValue, dan count wajib diisi");
+      return errorResponse("discountType, discountValue, dan count wajib diisi", 400);
     }
 
     const qty = parseInt(count);
     if (qty < 1 || qty > 100) {
-      return successResponse(null, "Jumlah coupon harus antara 1-100");
+      return errorResponse("Jumlah coupon harus antara 1-100", 400);
     }
 
     if (planId && planId !== "all") {
       const plan = await prisma.plan.findUnique({ where: { id: planId } });
       if (!plan) {
-        return successResponse(null, "Plan tidak ditemukan");
+        return errorResponse("Plan tidak ditemukan", 404);
       }
     }
 
@@ -47,6 +47,6 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
-    return successResponse(null, "Gagal membuat coupon");
+    return errorResponse("Gagal membuat coupon", 500);
   }
 }

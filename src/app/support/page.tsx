@@ -18,7 +18,7 @@ interface Ticket {
   category: string;
   createdAt: string;
   _count: { replies: number };
-  replies?: { id: string; message: string; isAdmin: boolean; createdAt: string; user: { name: string; role: string } }[];
+  replies?: { id: string; message: string; isAdmin: boolean; createdAt: string; user: { name: string; role: string } | null }[];
 }
 
 const faqs = [
@@ -179,7 +179,7 @@ export default function SupportPage() {
                 {selectedTicket.replies?.map((r) => (
                   <div key={r.id} className={`rounded-lg p-4 mb-3 ${r.isAdmin ? "bg-neon-cyan/5 border border-neon-cyan/10 ml-6" : "bg-white/[0.02] mr-6"}`}>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium">{r.user.name}</span>
+                      <span className="text-xs font-medium">{r.user?.name || (r.isAdmin ? "Admin" : "Pengguna")}</span>
                       {r.isAdmin && <span className="badge badge-admin text-[10px]">Admin</span>}
                       <span className="text-xs text-white/20">{new Date(r.createdAt).toLocaleString()}</span>
                     </div>

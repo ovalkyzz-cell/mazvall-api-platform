@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, authResponse, successResponse } from "@/lib/auth";
+import { requireAdmin, authResponse, successResponse, errorResponse } from "@/lib/auth";
+import { isDbUnavailable } from "@/lib/staticAuth";
 import { generateUniqueCouponCode } from "@/lib/coupon";
 
 export async function GET(req: NextRequest) {
@@ -24,7 +25,8 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
-    return successResponse(null, "Gagal mengambil data coupon");
+    if (isDbUnavailable(error)) return errorResponse("Database sedang tidak aktif", 503);
+    return errorResponse("Gagal mengambil data coupon", 500);
   }
 }
 
@@ -37,13 +39,13 @@ export async function POST(req: NextRequest) {
     const { planId, discountType, discountValue, maxUses, expiresAt } = body;
 
     if (!discountType || !discountValue) {
-      return successResponse(null, "discountType dan discountValue wajib diisi");
+      return errorResponse("discountType dan discountValue wajib diisi", 400);
     }
 
     if (planId && planId !== "all") {
       const plan = await prisma.plan.findUnique({ where: { id: planId } });
       if (!plan) {
-        return successResponse(null, "Plan tidak ditemukan");
+        return errorResponse("Plan tidak ditemukan", 404);
       }
     }
 
@@ -65,6 +67,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
-    return successResponse(null, "Gagal membuat coupon");
+    if (isDbUnavailable(error)) return errorResponse("Database sedang tidak aktif — coupon gagal disimpan.", 503);
+    return errorResponse("Gagal membuat coupon", 500);
   }
 }

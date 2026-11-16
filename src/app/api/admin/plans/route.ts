@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, authResponse, successResponse } from "@/lib/auth";
+import { requireAdmin, authResponse, successResponse, errorResponse } from "@/lib/auth";
 import { isDbUnavailable } from "@/lib/staticAuth";
 
 export async function GET(req: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       // database mati → daftar kosong agar halaman plans tetap terbuka
       return successResponse([]);
     }
-    return successResponse(null, "Gagal mengambil data plans");
+    return errorResponse("Gagal mengambil data plans", 500);
   }
 }
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const { name, slug, price, requestsPerDay, requestsPerMin, requestsPerHour, description, features, featureAccess, popular } = body;
 
     if (!name || !slug || !price || !description) {
-      return successResponse(null, "name, slug, price, dan description wajib diisi");
+      return errorResponse("name, slug, price, dan description wajib diisi", 400);
     }
 
     const existingPlan = await prisma.plan.findFirst({
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingPlan) {
-      return successResponse(null, "Nama atau slug sudah digunakan");
+      return errorResponse("Nama atau slug sudah digunakan", 400);
     }
 
     const plan = await prisma.plan.create({
@@ -64,9 +64,9 @@ export async function POST(req: NextRequest) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
     if (isDbUnavailable(error)) {
-      return successResponse(null, "Database sedang tidak aktif — plan gagal disimpan. Coba lagi nanti.");
+      return errorResponse("Database sedang tidak aktif — plan gagal disimpan. Coba lagi nanti.", 503);
     }
-    return successResponse(null, "Gagal membuat plan");
+    return errorResponse("Gagal membuat plan", 500);
   }
 }
 
@@ -79,12 +79,12 @@ export async function PUT(req: NextRequest) {
     const { id, name, slug, price, requestsPerDay, requestsPerMin, requestsPerHour, description, features, featureAccess, popular, active, discountCode, discountType, discountValue, discountMaxUses, discountExpiresAt } = body;
 
     if (!id) {
-      return successResponse(null, "Plan ID wajib diisi");
+      return errorResponse("Plan ID wajib diisi", 400);
     }
 
     const existingPlan = await prisma.plan.findUnique({ where: { id } });
     if (!existingPlan) {
-      return successResponse(null, "Plan tidak ditemukan");
+      return errorResponse("Plan tidak ditemukan", 404);
     }
 
     if (name || slug) {
@@ -101,7 +101,7 @@ export async function PUT(req: NextRequest) {
         },
       });
       if (duplicate) {
-        return successResponse(null, "Nama atau slug sudah digunakan");
+        return errorResponse("Nama atau slug sudah digunakan", 400);
       }
     }
 
@@ -133,8 +133,8 @@ export async function PUT(req: NextRequest) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);
     if (isDbUnavailable(error)) {
-      return successResponse(null, "Database sedang tidak aktif — perubahan plan gagal disimpan. Coba lagi nanti.");
+      return errorResponse("Database sedang tidak aktif — perubahan plan gagal disimpan. Coba lagi nanti.", 503);
     }
-    return successResponse(null, "Gagal memperbarui plan");
+    return errorResponse("Gagal memperbarui plan", 500);
   }
 }

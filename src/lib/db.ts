@@ -240,6 +240,7 @@ export async function findTicketById(id: string) {
       prisma.ticket.findUnique({
         where: { id },
         include: {
+          user: { select: { name: true, email: true, role: true } },
           replies: {
             include: { user: { select: { name: true, role: true } } },
             orderBy: { createdAt: 'asc' },

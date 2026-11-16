@@ -244,7 +244,7 @@ export default function DiscountsPage() {
                         {discount.active ? "Aktif" : "Nonaktif"}
                       </button>
                     </td>
-                    <td className="text-xs text-white/30">{discount.creator.name}</td>
+                    <td className="text-xs text-white/30">{discount.creator?.name || "-"}</td>
                     <td>
                       <button
                         onClick={() => handleDelete(discount.id)}

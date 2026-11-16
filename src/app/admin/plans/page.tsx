@@ -55,6 +55,7 @@ export default function AdminPlansPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [search, setSearch] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -86,7 +87,12 @@ export default function AdminPlansPage() {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    if (data.success) setPlans(data.data);
+    if (data.success && Array.isArray(data.data)) {
+      setPlans(data.data);
+      setActionError(null);
+    } else {
+      setActionError(data.error || data.message || "Gagal memuat daftar paket");
+    }
     setLoading(false);
   };
 
@@ -194,14 +200,17 @@ export default function AdminPlansPage() {
     });
     const data = await res.json();
     if (data.success) {
+      setActionError(null);
       setShowModal(false);
       fetchPlans();
+    } else {
+      setActionError(data.error || data.message || "Gagal menyimpan paket");
     }
   };
 
   const handleToggleActive = async (plan: Plan) => {
     if (!token) return;
-    await fetch("/api/admin/plans", {
+    const res = await fetch("/api/admin/plans", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -209,12 +218,14 @@ export default function AdminPlansPage() {
       },
       body: JSON.stringify({ id: plan.id, active: !plan.active }),
     });
+    const data = await res.json();
+    if (!data.success) setActionError(data.error || data.message || "Gagal mengubah status paket");
     fetchPlans();
   };
 
   const handleTogglePopular = async (plan: Plan) => {
     if (!token) return;
-    await fetch("/api/admin/plans", {
+    const res = await fetch("/api/admin/plans", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -222,6 +233,8 @@ export default function AdminPlansPage() {
       },
       body: JSON.stringify({ id: plan.id, popular: !plan.popular }),
     });
+    const data = await res.json();
+    if (!data.success) setActionError(data.error || data.message || "Gagal mengubah status popular");
     fetchPlans();
   };
 
@@ -256,6 +269,12 @@ export default function AdminPlansPage() {
             <Plus size={14} /> Tambah Paket
           </button>
         </div>
+
+        {actionError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {actionError}
+          </div>
+        )}
 
         {/* Search */}
         <div className="flex gap-3">

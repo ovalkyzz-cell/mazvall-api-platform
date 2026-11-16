@@ -53,6 +53,7 @@ export default function AdminCouponsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filterPlan, setFilterPlan] = useState("all");
   const [search, setSearch] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     planId: "",
@@ -82,7 +83,12 @@ export default function AdminCouponsPage() {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    if (data.success) setCoupons(data.data);
+    if (data.success && Array.isArray(data.data)) {
+      setCoupons(data.data);
+      setActionError(null);
+    } else {
+      setActionError(data.error || data.message || "Gagal memuat daftar coupon");
+    }
     setLoading(false);
   };
 
@@ -92,7 +98,7 @@ export default function AdminCouponsPage() {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    if (data.success) setPlans(data.data);
+    if (data.success && Array.isArray(data.data)) setPlans(data.data);
   };
 
   useEffect(() => {
@@ -117,9 +123,12 @@ export default function AdminCouponsPage() {
     });
     const data = await res.json();
     if (data.success) {
+      setActionError(null);
       setShowModal(false);
       setForm({ planId: "", discountType: "percentage", discountValue: "", maxUses: "1", expiresAt: "" });
       fetchCoupons();
+    } else {
+      setActionError(data.error || data.message || "Gagal membuat coupon");
     }
   };
 
@@ -138,15 +147,18 @@ export default function AdminCouponsPage() {
     });
     const data = await res.json();
     if (data.success) {
+      setActionError(null);
       setShowBatchModal(false);
       setBatchForm({ planId: "", discountType: "percentage", discountValue: "", maxUses: "1", expiresAt: "", count: "5" });
       fetchCoupons();
+    } else {
+      setActionError(data.error || data.message || "Gagal generate coupon");
     }
   };
 
   const handleToggle = async (id: string, active: boolean) => {
     if (!token) return;
-    await fetch(`/api/admin/coupons/${id}`, {
+    const res = await fetch(`/api/admin/coupons/${id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -154,15 +166,20 @@ export default function AdminCouponsPage() {
       },
       body: JSON.stringify({ active: !active }),
     });
+    const data = await res.json();
+    if (!data.success) setActionError(data.error || data.message || "Gagal mengubah status coupon");
     fetchCoupons();
   };
 
   const handleDelete = async (id: string) => {
     if (!token || !confirm("Yakin ingin menghapus coupon ini?")) return;
-    await fetch(`/api/admin/coupons/${id}`, {
+    const res = await fetch(`/api/admin/coupons/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
+    const data = await res.json();
+    if (!data.success) setActionError(data.error || data.message || "Gagal menghapus coupon");
+    else setActionError(null);
     fetchCoupons();
   };
 
@@ -218,6 +235,12 @@ export default function AdminCouponsPage() {
             </button>
           </div>
         </div>
+
+        {actionError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {actionError}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

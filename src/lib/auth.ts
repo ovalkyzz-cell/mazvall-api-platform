@@ -92,3 +92,7 @@ export function authResponse(message: string, status: number = 401) {
 export function successResponse(data: any, message?: string) {
   return NextResponse.json({ success: true, data, message });
 }
+
+export function errorResponse(message: string, status: number = 400) {
+  return NextResponse.json({ success: false, error: message, message }, { status });
+}
