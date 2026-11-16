@@ -11,6 +11,22 @@ export async function GET() {
     const plans = await prisma.plan.findMany({
       where: { active: true },
       orderBy: { price: 'asc' },
+      // hanya field publik — kode diskon & kuota paket tidak ikut bocor
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        price: true,
+        description: true,
+        features: true,
+        featureAccess: true,
+        popular: true,
+        active: true,
+        requestsPerDay: true,
+        requestsPerMin: true,
+        requestsPerHour: true,
+        createdAt: true,
+      },
     });
 
     return NextResponse.json({ success: true, data: plans.map(normalizePlan) });

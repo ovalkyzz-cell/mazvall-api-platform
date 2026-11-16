@@ -80,6 +80,7 @@ export async function GET(req: NextRequest) {
 
     const response = await fetch(QRIS_BASE_URL, {
       method: 'POST',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'Mozilla/5.0',
@@ -99,6 +100,38 @@ export async function GET(req: NextRequest) {
     const status = data.data?.status || data.status;
 
     if (status === 'success' && transaction.status !== 'success') {
+      // Kuota diskon dihitung SEKALI di sini (bukan lagi saat QRIS dibuat).
+      // discountCounted === false → baru; baris lama tanpa field dianggap
+      // sudah dihitung sehingga tidak dobel.
+      if (transaction.discountCounted === false) {
+        try {
+          if (transaction.discountId) {
+            await prisma.discount.update({
+              where: { id: transaction.discountId },
+              data: { usedCount: { increment: 1 } },
+            });
+          }
+          if (transaction.couponId) {
+            await prisma.coupon.update({
+              where: { id: transaction.couponId },
+              data: { usedCount: { increment: 1 } },
+            });
+          }
+          if (transaction.planDiscountApplied && transaction.planId) {
+            await prisma.plan.update({
+              where: { id: transaction.planId },
+              data: { discountUsedCount: { increment: 1 } },
+            });
+          }
+          await prisma.transaction.update({
+            where: { id: transaction.id },
+            data: { discountCounted: true },
+          });
+        } catch (countError) {
+          console.error('Gagal menghitung kuota diskon:', countError);
+        }
+      }
+
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: { status: 'success', paidAt: new Date() },
@@ -141,9 +174,12 @@ export async function GET(req: NextRequest) {
               qrUrl: data.data?.qr_url || transaction.qrUrl,
               paymentUrl: data.data?.payment_url || transaction.paymentUrl,
               amount: transaction.amount,
-              originalAmount: transaction.discount ? transaction.plan.price : null,
-              discountPercentage: transaction.discount?.percentage || null,
-              discountCode: transaction.discount?.code || null,
+              originalAmount:
+                transaction.originalAmount ??
+                (transaction.discount ? transaction.plan?.price ?? null : null),
+              discountPercentage:
+                transaction.discountPercentage ?? transaction.discount?.percentage ?? null,
+              discountCode: transaction.discountCode ?? transaction.discount?.code ?? null,
               planName: transaction.plan.name,
               apiKey: newKey.key,
             },
@@ -159,9 +195,12 @@ export async function GET(req: NextRequest) {
         qrUrl: data.data?.qr_url || transaction.qrUrl,
         paymentUrl: data.data?.payment_url || transaction.paymentUrl,
         amount: transaction.amount,
-        originalAmount: transaction.discount ? transaction.plan?.price : null,
-        discountPercentage: transaction.discount?.percentage || null,
-        discountCode: transaction.discount?.code || null,
+        originalAmount:
+          transaction.originalAmount ??
+          (transaction.discount ? transaction.plan?.price ?? null : null),
+        discountPercentage:
+          transaction.discountPercentage ?? transaction.discount?.percentage ?? null,
+        discountCode: transaction.discountCode ?? transaction.discount?.code ?? null,
         planName: transaction.plan?.name || null,
       },
     });

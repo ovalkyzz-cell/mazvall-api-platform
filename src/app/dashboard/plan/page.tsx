@@ -168,7 +168,7 @@ export default function PlanSelectionPage() {
                 <input
                   type="text"
                   value={couponCode}
-                  onChange={(e) => { setCouponCode(e.target.value); if (couponApplied) clearCoupon(); }}
+                  onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); if (couponApplied) clearCoupon(); }}
                   placeholder="Masukkan kode diskon"
                   disabled={!selectedPlan}
                   className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm font-mono focus:outline-none focus:border-neon-cyan/50 placeholder:text-white/20 disabled:opacity-30"

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/auth";
-import { validateCoupon, calculateDiscount } from "@/lib/coupon";
+import { resolveDiscountCode } from "@/lib/discount";
 import { isDbUnavailable } from "@/lib/staticAuth";
 
 export async function POST(req: NextRequest) {
@@ -13,35 +13,34 @@ export async function POST(req: NextRequest) {
       return errorResponse("code dan planId wajib diisi", 400);
     }
 
-    const result = await validateCoupon(code, planId);
-    if (!result.valid) {
-      return successResponse({ valid: false, error: result.error });
-    }
-
     const plan = await prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) {
       return successResponse({ valid: false, error: "Plan tidak ditemukan" });
     }
 
-    const { finalPrice, discountAmount } = calculateDiscount(
-      plan.price,
-      result.coupon!.discountType,
-      result.coupon!.discountValue
-    );
+    const result = await resolveDiscountCode(code, planId, plan.price);
+    if (!result.valid) {
+      return successResponse({ valid: false, error: result.error });
+    }
 
     return successResponse({
       valid: true,
-      code: result.coupon!.code,
-      discountType: result.coupon!.discountType,
-      discountValue: result.coupon!.discountValue,
-      originalPrice: plan.price,
-      discountAmount,
-      finalPrice,
+      code: result.code,
+      kind: result.kind,
+      discountType: result.discountType,
+      discountValue: result.discountValue,
+      originalPrice: result.originalPrice,
+      discountAmount: result.discountAmount,
+      finalPrice: result.finalPrice,
     });
-  } catch (error: any) {
+  } catch (error) {
     if (isDbUnavailable(error)) {
-      return successResponse({ valid: false, error: "Database sedang tidak aktif — kupon tidak dapat divalidasi. Coba lagi nanti." });
+      return errorResponse(
+        "Database sedang tidak aktif — kupon tidak dapat divalidasi. Coba lagi nanti.",
+        503
+      );
     }
+    console.error("Validate coupon error:", error);
     return errorResponse("Gagal memvalidasi coupon", 500);
   }
 }

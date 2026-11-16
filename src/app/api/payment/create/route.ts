@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
-import { validateCoupon, calculateDiscount } from '@/lib/coupon';
+import { resolveDiscountCode, resolvePlanAutoDiscount } from '@/lib/discount';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'mazvall-fallback-secret';
 
@@ -45,46 +45,45 @@ export async function POST(req: NextRequest) {
 
     let finalPrice = plan.price;
     let discountAmount = 0;
-    let appliedCoupon = null;
     let discountId: string | null = null;
+    let couponId: string | null = null;
+    let planDiscountApplied = false;
+    let resolvedDiscount: any = null;
+    let autoDiscount: any = null;
     const code = couponCode || discountCode;
 
     if (code) {
-      const couponResult = await validateCoupon(code, planId);
-      if (couponResult.valid) {
-        const discount = calculateDiscount(
-          plan.price,
-          couponResult.coupon!.discountType,
-          couponResult.coupon!.discountValue
-        );
-        finalPrice = discount.finalPrice;
-        discountAmount = discount.discountAmount;
-        appliedCoupon = couponResult.coupon;
-      } else {
-        const discount = await prisma.discount.findUnique({ where: { code } });
-        if (discount && discount.active) {
-          if (discount.validUntil && new Date() > discount.validUntil) {
-            return NextResponse.json({ success: false, error: 'Diskon sudah kadaluarsa' }, { status: 400 });
-          }
-          if (discount.usedCount >= discount.maxUses) {
-            return NextResponse.json({ success: false, error: 'Diskon sudah mencapai batas penggunaan' }, { status: 400 });
-          }
-          discountId = discount.id;
-          discountAmount = Math.round((plan.price * discount.percentage) / 100);
-          finalPrice = plan.price - discountAmount;
-        } else {
-          return NextResponse.json({ success: false, error: 'Kode diskon tidak valid' }, { status: 400 });
-        }
+      // resolver tunggal: kupon → kode diskon paket → diskon global
+      const resolved = await resolveDiscountCode(code, planId, plan.price);
+      if (!resolved.valid) {
+        return NextResponse.json({ success: false, error: resolved.error }, { status: 400 });
       }
-    } else if (plan.discountCode && plan.discountValue) {
-      const discount = calculateDiscount(
-        plan.price,
-        plan.discountType || 'percentage',
-        plan.discountValue
-      );
-      finalPrice = discount.finalPrice;
-      discountAmount = discount.discountAmount;
+      resolvedDiscount = resolved;
+      finalPrice = resolved.finalPrice;
+      discountAmount = resolved.discountAmount;
+      discountId = resolved.discountId;
+      couponId = resolved.couponId;
+      planDiscountApplied = resolved.kind === 'plan';
+    } else {
+      // diskon otomatis milik paket — dulu tanpa cek expired/kuota
+      const auto = resolvePlanAutoDiscount(plan, plan.price);
+      if (auto) {
+        autoDiscount = auto;
+        finalPrice = auto.finalPrice;
+        discountAmount = auto.discountAmount;
+        planDiscountApplied = true;
+      }
     }
+
+    const hasDiscount = !!discountId || !!couponId || planDiscountApplied;
+    const appliedDiscountType =
+      (resolvedDiscount && resolvedDiscount.discountType) ||
+      (autoDiscount && autoDiscount.discountType) ||
+      null;
+    const appliedDiscountValue =
+      (resolvedDiscount && resolvedDiscount.discountValue) ||
+      (autoDiscount && autoDiscount.discountValue) ||
+      null;
 
     const QRIS_ACCOUNT_ID = process.env.QRIS_ACCOUNT_ID || '';
     const QRIS_SECRET_TOKEN = process.env.QRIS_SECRET_TOKEN || '';
@@ -99,6 +98,7 @@ export async function POST(req: NextRequest) {
 
     const response = await fetch(QRIS_BASE_URL, {
       method: 'POST',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'Mozilla/5.0',
@@ -124,30 +124,17 @@ export async function POST(req: NextRequest) {
         qrUrl: data.data?.qr_url || null,
         paymentUrl: data.data?.payment_url || null,
         status: 'pending',
-        discountId: discountId,
+        discountId,
+        couponId,
+        planDiscountApplied,
+        // dipakai /api/payment/status: false = kuota diskon belum dihitung
+        discountCounted: hasDiscount ? false : true,
+        originalAmount: hasDiscount ? plan.price : null,
+        discountPercentage:
+          hasDiscount && appliedDiscountType === 'percentage' ? appliedDiscountValue : null,
+        discountCode: hasDiscount ? String(code || plan.discountCode || '') : null,
       },
     });
-
-    if (appliedCoupon) {
-      if (appliedCoupon.id && appliedCoupon.id !== plan.id) {
-        await prisma.coupon.update({
-          where: { id: appliedCoupon.id },
-          data: { usedCount: { increment: 1 } },
-        });
-      } else if (appliedCoupon.planId === null || appliedCoupon.planId === plan.id) {
-        await prisma.plan.update({
-          where: { id: plan.id },
-          data: { discountUsedCount: { increment: 1 } },
-        });
-      }
-    }
-
-    if (discountId) {
-      await prisma.discount.update({
-        where: { id: discountId },
-        data: { usedCount: { increment: 1 } },
-      });
-    }
 
     return NextResponse.json({
       success: true,

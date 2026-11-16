@@ -40,14 +40,14 @@ export async function validateCoupon(code: string, planId: string) {
     }
 
     if (coupon.expiresAt && new Date() > coupon.expiresAt) {
-      return { valid: false, error: "Kode diskon sudah kadaluarsa" };
+      return { valid: false, error: "Kode diskon sudah kedaluwarsa" };
     }
 
     if (coupon.usedCount >= coupon.maxUses) {
       return { valid: false, error: "Kode diskon sudah mencapai batas penggunaan" };
     }
 
-    return { valid: true, coupon };
+    return { valid: true, coupon, kind: "coupon" as const };
   }
 
   const plan = await prisma.plan.findUnique({ where: { id: planId } });
@@ -57,30 +57,34 @@ export async function validateCoupon(code: string, planId: string) {
     }
 
     if (plan.discountExpiresAt && new Date() > plan.discountExpiresAt) {
-      return { valid: false, error: "Kode diskon paket sudah kadaluarsa" };
+      return { valid: false, error: "Kode diskon paket sudah kedaluwarsa" };
     }
 
     if (plan.discountMaxUses && plan.discountUsedCount >= plan.discountMaxUses) {
       return { valid: false, error: "Kode diskon paket sudah mencapai batas penggunaan" };
     }
 
-    const fakeCoupon = {
-      id: plan.id,
-      code: plan.discountCode,
-      planId: plan.id,
-      discountType: plan.discountType || "percentage",
-      discountValue: plan.discountValue || 0,
-      maxUses: plan.discountMaxUses || 999999,
-      usedCount: plan.discountUsedCount,
-      active: true,
-      expiresAt: plan.discountExpiresAt,
-      plan: plan,
+    return {
+      valid: true,
+      kind: "plan" as const,
+      coupon: {
+        id: plan.id,
+        code: plan.discountCode,
+        planId: plan.id,
+        discountType: plan.discountType || "percentage",
+        discountValue: plan.discountValue || 0,
+        maxUses: plan.discountMaxUses || 999999,
+        usedCount: plan.discountUsedCount,
+        active: true,
+        expiresAt: plan.discountExpiresAt,
+        plan,
+      } as any,
     };
-
-    return { valid: true, coupon: fakeCoupon as any };
   }
 
-  return { valid: false, error: "Kode diskon tidak ditemukan" };
+  // tidak ada kupon maupun kode diskon paket → penanda agar resolver
+  // lanjut mengecek diskon global (tabel discount)
+  return { valid: false, error: "Kode diskon tidak ditemukan", notFound: true };
 }
 
 export function calculateDiscount(

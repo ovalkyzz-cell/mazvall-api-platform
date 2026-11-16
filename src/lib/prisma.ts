@@ -96,6 +96,14 @@ const MODELS: Record<ModelName, ModelSpec> = {
       paymentUrl: null,
       status: 'pending',
       discountId: null,
+      couponId: null,
+      planDiscountApplied: false,
+      // true = kuota diskon sudah dihitung (baris lama tanpa field ini
+      // dianggap sudah dihitung saat create, jadi tidak dobel)
+      discountCounted: true,
+      originalAmount: null,
+      discountPercentage: null,
+      discountCode: null,
       paidAt: null,
       createdAt: now(),
       updatedAt: now(),
