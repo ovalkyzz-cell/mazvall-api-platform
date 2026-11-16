@@ -35,8 +35,8 @@ interface Plan {
   active: boolean;
 }
 
-const planIcon = (name: string) => {
-  switch (name.toLowerCase()) {
+const planIcon = (name?: string | null) => {
+  switch (String(name || "").toLowerCase()) {
     case "gratis": return Star;
     case "starter": return Zap;
     case "pro": return Crown;
@@ -127,10 +127,11 @@ export default function PricingPage() {
 
   const calculateDiscountAmount = (price: number, coupon: any) => {
     if (!coupon) return 0;
+    const value = Number(coupon.discountValue) || 0;
     if (coupon.discountType === "percentage") {
-      return Math.floor((price * coupon.discountValue) / 100);
+      return Math.floor((price * value) / 100);
     }
-    return coupon.discountValue;
+    return value;
   };
 
   const calculateFinalPrice = (price: number, coupon: any) => {
@@ -277,7 +278,7 @@ export default function PricingPage() {
                     </div>
 
                     <ul className="space-y-2.5 mb-4 flex-1">
-                      {plan.features.split(",").map((f, fi) => (
+                      {plan.features.split(",").filter((f) => f.trim()).map((f, fi) => (
                         <li key={fi} className="flex items-start gap-2 text-sm text-white/50">
                           <CheckCircle size={14} className="text-neon-cyan shrink-0 mt-0.5" />
                           <span>{f.trim()}</span>
@@ -337,8 +338,8 @@ export default function PricingPage() {
                                   </span>
                                   <span className="text-xs text-white/40">
                                     {appliedCoupons[plan.id].discountType === "percentage"
-                                      ? `-${appliedCoupons[plan.id].discountValue}%`
-                                      : `-Rp ${appliedCoupons[plan.id].discountValue.toLocaleString("id-ID")}`}
+                                      ? `-${Number(appliedCoupons[plan.id].discountValue) || 0}%`
+                                      : `-Rp ${(Number(appliedCoupons[plan.id].discountValue) || 0).toLocaleString("id-ID")}`}
                                   </span>
                                 </div>
                               </div>

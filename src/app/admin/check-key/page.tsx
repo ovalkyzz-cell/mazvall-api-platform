@@ -199,29 +199,29 @@ export default function CheckKeyPage() {
                     Informasi User
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <InfoCard icon={User} label="Nama" value={result.details.user.name} />
-                    <InfoCard icon={Mail} label="Email" value={result.details.user.email} />
-                    <InfoCard icon={Shield} label="Role" value={result.details.user.role} badge />
+                    <InfoCard icon={User} label="Nama" value={result.details.user?.name || "-"} />
+                    <InfoCard icon={Mail} label="Email" value={result.details.user?.email || "-"} />
+                    <InfoCard icon={Shield} label="Role" value={result.details.user?.role || "-"} badge />
                     <div className="glass-card p-4">
                       <div className="flex items-center gap-2 mb-1">
                         <Activity size={14} className="text-white/30" />
                         <span className="text-xs text-white/30">Tier</span>
                       </div>
                       <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
-                        result.details.user.tier === "enterprise"
+                        result.details.user?.tier === "enterprise"
                           ? "bg-purple-500/15 text-purple-400 border border-purple-500/20"
-                          : result.details.user.tier === "developer"
+                          : result.details.user?.tier === "developer"
                           ? "bg-blue-500/15 text-blue-400 border border-blue-500/20"
                           : "bg-white/10 text-white/50 border border-white/10"
                       }`}>
-                        {result.details.user.tier}
+                        {result.details.user?.tier || "-"}
                       </span>
                     </div>
                     <InfoCard
-                      icon={result.details.user.status === "active" ? CheckCircle : XCircle}
+                      icon={result.details.user?.status === "active" ? CheckCircle : XCircle}
                       label="Status User"
-                      value={result.details.user.status === "active" ? "Aktif" : result.details.user.status}
-                      highlight={result.details.user.status === "active" ? "green" : "red"}
+                      value={result.details.user?.status === "active" ? "Aktif" : (result.details.user?.status || "-")}
+                      highlight={result.details.user?.status === "active" ? "green" : "red"}
                     />
                   </div>
                 </div>

@@ -130,10 +130,10 @@ export default function DashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { icon: Activity, label: "Hari Ini", value: data?.stats.todayCount ?? 0, color: "text-neon-cyan" },
-            { icon: TrendingUp, label: "Minggu Ini", value: data?.stats.weekCount ?? 0, color: "text-neon-magenta" },
-            { icon: BarChart3, label: "Bulan Ini", value: data?.stats.monthCount ?? 0, color: "text-neon-lime" },
-            { icon: Key, label: "Kunci Aktif", value: data?.stats.totalKeys ?? 0, color: "text-neon-purple" },
+            { icon: Activity, label: "Hari Ini", value: data?.stats?.todayCount ?? 0, color: "text-neon-cyan" },
+            { icon: TrendingUp, label: "Minggu Ini", value: data?.stats?.weekCount ?? 0, color: "text-neon-magenta" },
+            { icon: BarChart3, label: "Bulan Ini", value: data?.stats?.monthCount ?? 0, color: "text-neon-lime" },
+            { icon: Key, label: "Kunci Aktif", value: data?.stats?.totalKeys ?? 0, color: "text-neon-purple" },
           ].map((s, i) => (
             <motion.div
               key={s.label}
@@ -146,7 +146,7 @@ export default function DashboardPage() {
                 <s.icon size={18} className={s.color} />
                 <span className="text-xs text-white/20">{s.label}</span>
               </div>
-              <div className="text-2xl font-extrabold font-display">{s.value.toLocaleString()}</div>
+              <div className="text-2xl font-extrabold font-display">{(s.value ?? 0).toLocaleString()}</div>
             </motion.div>
           ))}
         </div>
@@ -202,7 +202,7 @@ export default function DashboardPage() {
           )}
 
           <div className="space-y-3">
-            {data?.keys.map((k, i) => (
+            {data?.keys?.map((k, i) => (
               <motion.div
                 key={k.id}
                 initial={{ opacity: 0, x: -20 }}
@@ -226,7 +226,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-xs text-white/20">
                     <span>Batas: {k.rateLimit} RPM</span>
-                    <span>Permintaan: {k._count.usageLogs}</span>
+                    <span>Permintaan: {k._count?.usageLogs ?? 0}</span>
                     <span>Terakhir digunakan: {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : "Belum Pernah"}</span>
                   </div>
                 </div>
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                 </div>
               </motion.div>
             ))}
-            {data?.keys.length === 0 && (
+            {(data?.keys?.length ?? -1) === 0 && (
               <div className="glass-card p-8 text-center text-white/20 text-sm">
                 Belum ada kunci API. Buat kunci API pertama kamu untuk memulai.
               </div>

@@ -165,6 +165,21 @@ export default function AdminPlansPage() {
   const handleSubmit = async () => {
     if (!token || !form.name || !form.slug || !form.price) return;
 
+    const numericFields: Array<[string, string]> = [
+      ["price", form.price],
+      ["requestsPerDay", form.requestsPerDay],
+      ["requestsPerMin", form.requestsPerMin],
+      ["requestsPerHour", form.requestsPerHour],
+    ];
+    for (const [field, raw] of numericFields) {
+      const parsed = Number(raw);
+      if (raw === "" || !Number.isFinite(parsed) || parsed < 0) {
+        setActionError(`${field} harus berupa angka nol atau lebih`);
+        return;
+      }
+    }
+    setActionError(null);
+
     let discountExpiresAt = null;
     if (form.discountExpiresDate) {
       discountExpiresAt = `${form.discountExpiresDate}T${form.discountExpiresTime}:00`;

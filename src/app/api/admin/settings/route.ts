@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRateLimits, updateRateLimitConfig, getSecuritySettings, updateSecuritySettings } from '@/lib/db';
-import { requireAdmin, authResponse, successResponse } from '@/lib/auth';
+import { requireAdmin, authResponse, successResponse, errorResponse } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,16 +20,24 @@ export async function PUT(req: NextRequest) {
     const admin = requireAdmin(req);
     const body = await req.json();
 
+    let writeFailed = false;
+
     if (body.limits && Array.isArray(body.limits)) {
       for (const l of body.limits) {
         if (l.tier && typeof l.rpm === 'number' && typeof l.rph === 'number' && typeof l.rpd === 'number') {
-          await updateRateLimitConfig(l.tier, l.rpm, l.rph, l.rpd);
+          const saved = await updateRateLimitConfig(l.tier, l.rpm, l.rph, l.rpd);
+          if (saved === null) writeFailed = true;
         }
       }
     }
 
     if (body.security && typeof body.security === 'object') {
-      await updateSecuritySettings(body.security);
+      const saved = await updateSecuritySettings(body.security);
+      if (saved === null) writeFailed = true;
+    }
+
+    if (writeFailed) {
+      return errorResponse('Database sedang tidak aktif — pengaturan tidak tersimpan.', 503);
     }
 
     const updated = await getRateLimits();

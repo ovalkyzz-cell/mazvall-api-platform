@@ -38,6 +38,7 @@ export default function AdminSettingsPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [configs, setConfigs] = useState([
     { tier: "free", rpm: 10, rph: 100, rpd: 1000 },
     { tier: "developer", rpm: 60, rph: 2000, rpd: 20000 },
@@ -61,7 +62,7 @@ export default function AdminSettingsPage() {
       fetch("/api/admin/settings", { headers: { Authorization: `Bearer ${token}` } })
         .then((r) => r.json())
         .then((d) => {
-          if (d.success) {
+          if (d.success && d.data) {
             if (d.data.limits) {
               setConfigs(d.data.limits.map((l: any) => ({ tier: l.tier, rpm: l.rpm, rph: l.rph, rpd: l.rpd })));
             }
@@ -95,8 +96,11 @@ export default function AdminSettingsPage() {
     });
     const d = await res.json();
     if (d.success) {
+      setSaveError(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    } else {
+      setSaveError(d.error || d.message || 'Gagal menyimpan pengaturan');
     }
     setSaving(false);
   };
@@ -119,6 +123,12 @@ export default function AdminSettingsPage() {
             {saving ? "Saving..." : saved ? <><CheckCircle size={14} /> Saved!</> : <><Save size={14} /> Save Changes</>}
           </button>
         </div>
+
+        {saveError && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {saveError}
+          </div>
+        )}
 
         {/* Security Settings */}
         <motion.div

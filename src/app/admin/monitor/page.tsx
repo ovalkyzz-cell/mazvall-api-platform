@@ -29,6 +29,7 @@ interface MonitorData {
   tierDistribution: { tier: string; _count: number }[];
   statusDistribution: { status: string; _count: number }[];
   timestamp: string;
+  degraded?: boolean;
 }
 
 export default function MonitorPage() {
@@ -54,8 +55,8 @@ export default function MonitorPage() {
       const d = await res.json();
       if (d.success) {
         setData((prev) => {
-          setPrevToday(prev?.overview.todayRequests || 0);
-          setPrevHour(prev?.overview.hourRequests || 0);
+          setPrevToday(prev?.overview?.todayRequests || 0);
+          setPrevHour(prev?.overview?.hourRequests || 0);
           return d.data;
         });
         setLastRefresh(new Date());
@@ -110,6 +111,12 @@ export default function MonitorPage() {
             </button>
           </div>
         </div>
+
+        {data?.degraded && (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">
+            Storage sedang tidak terjangkau — metrik ditampilkan sebagai nol untuk sementara.
+          </div>
+        )}
 
         {/* Overview Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -172,7 +179,7 @@ export default function MonitorPage() {
                     <p className="text-xs text-white/30 truncate">{u.email}</p>
                   </div>
                   <span className={`badge badge-${u.tier}`}>{u.tier}</span>
-                  <span className="text-sm font-mono text-neon-cyan">{u.requestCount.toLocaleString()}</span>
+                  <span className="text-sm font-mono text-neon-cyan">{(u.requestCount ?? 0).toLocaleString()}</span>
                 </div>
               ))}
               {(!data?.topUsers || data.topUsers.length === 0) && (

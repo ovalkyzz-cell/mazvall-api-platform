@@ -47,7 +47,7 @@ interface OpenEndpoint {
   note: string;
 }
 
-const formatRupiah = (amount: number) => `Rp ${amount.toLocaleString("id-ID")}`;
+const formatRupiah = (amount: number) => `Rp ${(Number(amount) || 0).toLocaleString("id-ID")}`;
 
 export default function AdminPage() {
   const { user, token, loading: authLoading } = useAuth();
@@ -184,7 +184,7 @@ export default function AdminPage() {
                 <s.icon size={16} className={s.color} />
                 <span className="text-xs text-white/20">{s.label}</span>
               </div>
-              <div className="text-xl font-extrabold font-display">{s.value.toLocaleString()}</div>
+              <div className="text-xl font-extrabold font-display">{(s.value ?? 0).toLocaleString()}</div>
             </motion.div>
           ))}
         </div>
@@ -274,7 +274,7 @@ export default function AdminPage() {
               <div>
                 Rate limit: <span className="text-white/60">{openApi?.rateLimit.rpm}/menit per IP</span>
                 <span className="mx-2 text-white/15">·</span>
-                kuota <span className="text-white/60">{openApi?.rateLimit.rpd.toLocaleString()}/hari</span>
+                kuota <span className="text-white/60">{(openApi?.rateLimit?.rpd ?? 0).toLocaleString()}/hari</span>
                 <span className="mx-2 text-white/15">·</span>
                 terpakai hari ini <span className="text-neon-lime">{openApi?.usage.today ?? 0}</span>
               </div>
@@ -328,7 +328,7 @@ export default function AdminPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={revenue?.revenueByPlan.map((p) => ({ name: p.planName, value: p.totalRevenue })) ?? []}
+                    data={revenue?.revenueByPlan?.map((p) => ({ name: p.planName, value: p.totalRevenue })) ?? []}
                     cx="50%"
                     cy="50%"
                     innerRadius={50}
@@ -336,7 +336,7 @@ export default function AdminPage() {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {revenue?.revenueByPlan.map((_, i) => (
+                    {revenue?.revenueByPlan?.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
@@ -348,7 +348,7 @@ export default function AdminPage() {
               </ResponsiveContainer>
             </div>
             <div className="space-y-2 mt-2">
-              {revenue?.revenueByPlan.map((p, i) => (
+              {revenue?.revenueByPlan?.map((p, i) => (
                 <div key={p.planId} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
@@ -388,7 +388,7 @@ export default function AdminPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={data?.tierDistribution.map((t) => ({ name: t.tier, value: t._count })) ?? []}
+                    data={data?.tierDistribution?.map((t) => ({ name: t.tier, value: t._count })) ?? []}
                     cx="50%"
                     cy="50%"
                     innerRadius={50}
@@ -396,7 +396,7 @@ export default function AdminPage() {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {data?.tierDistribution.map((_, i) => (
+                    {data?.tierDistribution?.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
@@ -405,7 +405,7 @@ export default function AdminPage() {
               </ResponsiveContainer>
             </div>
             <div className="flex justify-center gap-4 mt-2">
-              {data?.tierDistribution.map((t, i) => (
+              {data?.tierDistribution?.map((t, i) => (
                 <div key={t.tier} className="flex items-center gap-2 text-xs text-white/40">
                   <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i] }} />
                   {t.tier} ({t._count})
@@ -433,7 +433,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {revenue?.transactions.map((tx) => (
+                {revenue?.transactions?.map((tx) => (
                   <tr key={tx.id}>
                     <td className="text-sm">{tx.user?.name || "Unknown"}</td>
                     <td className="text-sm">{tx.plan?.name || "Unknown"}</td>
@@ -446,7 +446,7 @@ export default function AdminPage() {
                     <td className="text-xs text-white/30">{tx.paidAt ? new Date(tx.paidAt).toLocaleString("id-ID") : "-"}</td>
                   </tr>
                 ))}
-                {revenue?.transactions.length === 0 && (
+                {(revenue?.transactions?.length ?? -1) === 0 && (
                   <tr><td colSpan={5} className="text-center text-white/20 py-8">Belum ada transaksi</td></tr>
                 )}
               </tbody>
@@ -470,7 +470,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {data?.recentLogs.map((log) => (
+                {data?.recentLogs?.map((log) => (
                   <tr key={log.id}>
                     <td className="text-sm">{log.user?.name || "Unknown"}</td>
                     <td className="text-xs font-mono text-neon-cyan/60">{log.apiKey?.name}</td>
@@ -480,7 +480,7 @@ export default function AdminPage() {
                     <td className="text-xs text-white/30">{new Date(log.createdAt).toLocaleString()}</td>
                   </tr>
                 ))}
-                {data?.recentLogs.length === 0 && (
+                {(data?.recentLogs?.length ?? -1) === 0 && (
                   <tr><td colSpan={6} className="text-center text-white/20 py-8">No activity yet</td></tr>
                 )}
               </tbody>

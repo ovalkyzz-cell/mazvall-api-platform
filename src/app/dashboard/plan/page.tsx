@@ -127,8 +127,8 @@ export default function PlanSelectionPage() {
     }
   };
 
-  const planIcon = (name: string) => {
-    switch (name.toLowerCase()) {
+  const planIcon = (name?: string | null) => {
+    switch (String(name || "").toLowerCase()) {
       case "gratis": return <Zap size={20} />;
       case "starter": return <Rocket size={20} />;
       case "pro": return <Crown size={20} />;
@@ -257,7 +257,7 @@ export default function PlanSelectionPage() {
                     <p className="text-sm text-white/40 mb-4">{plan.description}</p>
 
                     <ul className="space-y-2 mb-6 flex-1">
-                      {plan.features.split(",").map((f, fi) => (
+                      {plan.features.split(",").filter((f) => f.trim()).map((f, fi) => (
                         <li key={fi} className="flex items-center gap-2 text-sm text-white/50">
                           <Check size={14} className="text-neon-cyan shrink-0" />
                           {f.trim()}

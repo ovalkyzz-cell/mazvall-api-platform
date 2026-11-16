@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, authResponse, successResponse, errorResponse } from "@/lib/auth";
 import { isDbUnavailable } from "@/lib/staticAuth";
 import { generateUniqueCouponCode } from "@/lib/coupon";
+import { normalizePlan } from "@/lib/planShape";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +22,9 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return successResponse(coupons);
+    return successResponse(
+      coupons.map((c: any) => ({ ...c, plan: c.plan ? normalizePlan(c.plan) : null }))
+    );
   } catch (error: any) {
     if (error.message === "Unauthorized") return authResponse("Unauthorized");
     if (error.message === "Forbidden") return authResponse("Forbidden", 403);

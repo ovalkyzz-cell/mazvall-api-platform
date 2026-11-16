@@ -59,19 +59,29 @@ export default function AdminUsersPage() {
 
   const updateStatus = async (id: string, status: string) => {
     if (!token) return;
-    await fetch(`/api/admin/users/${id}`, {
+    const res = await fetch(`/api/admin/users/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status }),
     });
+    const payload = await res.json().catch(() => null);
+    if (!payload?.success) {
+      alert(payload?.error || payload?.message || "Gagal mengubah status pengguna");
+      return;
+    }
     const d = await fetch("/api/admin/users", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json());
     if (d.success) setUsers(d.data.users);
   };
 
   const deleteUser = async (id: string) => {
     if (!confirm("Hapus pengguna ini?") || !token) return;
-    await fetch(`/api/admin/users/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-    setUsers((prev) => prev.filter((u) => u.id !== id));
+    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    const d = await res.json().catch(() => null);
+    if (d?.success) {
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+    } else {
+      alert(d?.error || d?.message || "Gagal menghapus pengguna");
+    }
   };
 
   const statusBadge = (status?: string) => {
@@ -177,8 +187,8 @@ export default function AdminUsersPage() {
                     )}
                   </td>
                   <td>{statusBadge(u.status)}</td>
-                  <td className="text-sm">{u._count.apiKeys}</td>
-                  <td className="text-sm">{u._count.usageLogs.toLocaleString()}</td>
+                  <td className="text-sm">{u._count?.apiKeys ?? 0}</td>
+                  <td className="text-sm">{(u._count?.usageLogs ?? 0).toLocaleString()}</td>
                   <td className="text-xs text-white/30">{new Date(u.createdAt).toLocaleDateString()}</td>
                   <td>
                     <div className="flex items-center gap-2">
